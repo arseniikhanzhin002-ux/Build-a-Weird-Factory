@@ -54,8 +54,9 @@ end)
 
 local toggle = Instance.new("TextButton")
 toggle.Name = "AdminToggle"
-toggle.Position = UDim2.fromOffset(12, 270)
-toggle.Size = UDim2.fromOffset(112, 34)
+toggle.AnchorPoint = Vector2.new(1, 0)
+toggle.Position = UDim2.new(1, -18, 0, 18)
+toggle.Size = UDim2.fromOffset(104, 34)
 toggle.BackgroundColor3 = Color3.fromRGB(135, 75, 20)
 toggle.Text = "ADMIN"
 toggle.TextColor3 = Color3.new(1, 1, 1)
@@ -67,8 +68,9 @@ corner(toggle, 8)
 
 local panel = Instance.new("Frame")
 panel.Name = "AdminPanel"
-panel.Position = UDim2.fromOffset(12, 312)
-panel.Size = UDim2.fromOffset(310, 360)
+panel.AnchorPoint = Vector2.new(1, 0)
+panel.Position = UDim2.new(1, -18, 0, 60)
+panel.Size = UDim2.fromOffset(310, 410)
 panel.BackgroundColor3 = Color3.fromRGB(22, 27, 39)
 panel.BorderSizePixel = 0
 panel.Visible = false
@@ -79,10 +81,10 @@ stroke.Color = Color3.fromRGB(255, 180, 55)
 stroke.Thickness = 1.5
 stroke.Parent = panel
 
-local function addLabel(text, y)
+local function addLabel(text, y, height)
     local item = Instance.new("TextLabel")
     item.Position = UDim2.fromOffset(12, y)
-    item.Size = UDim2.new(1, -24, 0, 22)
+    item.Size = UDim2.new(1, -24, 0, height or 22)
     item.BackgroundTransparency = 1
     item.Text = text
     item.TextColor3 = Color3.fromRGB(245, 245, 250)
@@ -90,6 +92,7 @@ local function addLabel(text, y)
     item.Font = Enum.Font.GothamBold
     item.TextXAlignment = Enum.TextXAlignment.Left
     item.Parent = panel
+    return item
 end
 
 local function addInput(name, placeholder, y)
@@ -128,7 +131,7 @@ end
 
 addLabel("FACTORY ADMIN  •  pozziBros_Az", 8)
 addLabel("Factory Cash amount", 34)
-local amount = addInput("CashAmount", "Enter any amount", 57)
+local amount = addInput("CashAmount", "Enter amount", 57)
 addButton("GiveCash", "GIVE", 12, 97, 138, Color3.fromRGB(40, 145, 85), function()
     adminAction:FireServer("GiveCash", amount.Text)
 end)
@@ -142,12 +145,38 @@ addButton("SpawnProduct", "SPAWN PRODUCT", 12, 198, 286, Color3.fromRGB(55, 105,
     adminAction:FireServer("SpawnProduct", productInput.Text)
 end)
 
-addButton("ResetAccount", "RESET MY ACCOUNT", 12, 238, 286, Color3.fromRGB(165, 65, 65), function()
-    adminAction:FireServer("ResetAccount")
+addLabel("Reset any account by Roblox username", 236)
+local targetInput = addInput("ResetUsername", "Exact username (online or offline)", 259)
+local resetButton
+local resetArmed = false
+resetButton = addButton("ResetAccount", "RESET SELECTED ACCOUNT", 12, 299, 286, Color3.fromRGB(165, 65, 65), function()
+    if not resetArmed then
+        resetArmed = true
+        resetButton.Text = "CONFIRM RESET"
+        return
+    end
+    if targetInput.Text:gsub("%s", "") == "" then
+        resetButton.Text = "ENTER USERNAME FIRST"
+        resetArmed = false
+        return
+    end
+    adminAction:FireServer("ResetAccount", targetInput.Text)
+    resetButton.Text = "RESET REQUEST SENT"
+    resetArmed = false
+end)
+
+local status = addLabel("Ready.", 334, 20)
+status.TextColor3 = Color3.fromRGB(165, 205, 180)
+adminAction.OnClientEvent:Connect(function(kind, success, message)
+    if kind == "Result" then
+        status.Text = tostring(message or (success and "Done." or "Failed."))
+        status.TextColor3 = success and Color3.fromRGB(100, 235, 145) or Color3.fromRGB(255, 120, 105)
+        resetButton.Text = "RESET SELECTED ACCOUNT"
+    end
 end)
 
 local paused = false
-local pauseButton = addButton("StopAllProduction", "STOP ALL FACTORIES", 12, 278, 286, Color3.fromRGB(190, 125, 35), function()
+local pauseButton = addButton("StopAllProduction", "STOP ALL FACTORIES", 12, 365, 286, Color3.fromRGB(190, 125, 35), function()
     paused = not paused
     adminAction:FireServer("StopAllProduction", paused)
     pauseButton.Text = paused and "RESUME ALL FACTORIES" or "STOP ALL FACTORIES"
