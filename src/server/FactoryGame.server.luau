@@ -789,11 +789,16 @@ end
 
 local function updateButton(plotData, id)
     local entry = plotData.buttons[id]
-    if not entry then return end
-    local bought = plotData.upgrades[id]
-    entry.part.Color = bought and Color3.fromRGB(85, 85, 85) or UPGRADES[id].color
-    entry.prompt.ActionText = bought and "Purchased" or ("Buy $" .. UPGRADES[id].price)
+    if not entry or not entry.part or not entry.prompt then return end
+
+    local bought = plotData.upgrades[id] == true
+    -- Purchased upgrade pads disappear completely; resetting the upgrade restores them.
+    entry.part.Transparency = bought and 1 or 0
+    entry.part.CanCollide = not bought
+    entry.part.CanTouch = not bought
+    entry.part.CanQuery = not bought
     entry.prompt.Enabled = not bought
+    entry.prompt.ActionText = "Buy $" .. UPGRADES[id].price
 end
 
 local function buyUpgrade(player, plotData, id)
