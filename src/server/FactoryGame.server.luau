@@ -27,6 +27,11 @@ local UPGRADES = {
     Income = { price = 200, title = "More Cash", color = Color3.fromRGB(170, 90, 255), offset = Vector3.new(23, 1.2, 14) },
 }
 local ORDER = { "Machine", "Speed", "Income" }
+local PRODUCTION_LEVELS = {
+    { price = 500, title = "Assembly Machine Mk II", color = Color3.fromRGB(55, 205, 255) },
+    { price = 1500, title = "Turbo Press Mk III", color = Color3.fromRGB(255, 135, 45) },
+    { price = 5000, title = "Quantum Assembler Mk IV", color = Color3.fromRGB(190, 95, 255) },
+}
 
 -- Stage 3: unusual products with different rewards.
 -- Weights are relative spawn chances, not paid loot-box odds.
@@ -175,6 +180,79 @@ local function createExtraMachine(plotData)
         Color3.fromRGB(55, 255, 230), Enum.Material.Neon, machine)
 end
 
+local function createProductionMachine(plotData, level)
+    local config = PRODUCTION_LEVELS[level]
+    if not config then return end
+    local machines = plotData.model:FindFirstChild("ProductionMachines")
+    if not machines then
+        machines = Instance.new("Folder")
+        machines.Name = "ProductionMachines"
+        machines.Parent = plotData.model
+    end
+    local positions = { Vector3.new(0, 4, -15), Vector3.new(14, 4, -15), Vector3.new(-14, 4, -15) }
+    local position = plotData.center + positions[level]
+    local machine = Instance.new("Model")
+    machine.Name = "ProductionMachine_" .. level
+    machine.Parent = machines
+    decorativePart("Foundation", Vector3.new(9, 0.6, 9), CFrame.new(position + Vector3.new(0, -3.4, 0)), Color3.fromRGB(35, 42, 55), Enum.Material.Metal, machine)
+    decorativePart("MachineBody", Vector3.new(7, 6, 7), CFrame.new(position), config.color, Enum.Material.Metal, machine)
+    decorativePart("TopHousing", Vector3.new(7.8, 0.5, 7.8), CFrame.new(position + Vector3.new(0, 3.25, 0)), Color3.fromRGB(175, 190, 205), Enum.Material.Metal, machine)
+    local core = decorativePart("EnergyCore", Vector3.new(3.5, 3.5, 0.25), CFrame.new(position + Vector3.new(0, 0.2, 3.62)), config.color, Enum.Material.Neon, machine)
+    local light = Instance.new("PointLight")
+    light.Color = config.color
+    light.Brightness = 1.5
+    light.Range = 14
+    light.Parent = core
+    local sign = Instance.new("BillboardGui")
+    sign.Name = "MachineLevel"
+    sign.Size = UDim2.fromOffset(150, 30)
+    sign.StudsOffsetWorldSpace = Vector3.new(0, 5, 0)
+    sign.MaxDistance = 45
+    sign.Parent = machine:FindFirstChild("TopHousing")
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.fromScale(1, 1)
+    label.BackgroundTransparency = 1
+    label.Text = "LEVEL " .. level .. " - " .. config.title
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextStrokeTransparency = 0.3
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.Parent = sign
+end
+
+local function updateProductionButton(plotData)
+    local entry = plotData.productionButton
+    if not entry then return end
+    local level = plotData.productionLevel or 0
+    local nextConfig = PRODUCTION_LEVELS[level + 1]
+    if nextConfig then
+        entry.part.Color = nextConfig.color
+        entry.prompt.ObjectText = "Production Level " .. (level + 1)
+        entry.prompt.ActionText = "Upgrade $" .. nextConfig.price
+        entry.prompt.Enabled = true
+    else
+        entry.part.Color = Color3.fromRGB(75, 85, 95)
+        entry.prompt.ObjectText = "Production MAX"
+        entry.prompt.ActionText = "MAX LEVEL"
+        entry.prompt.Enabled = false
+    end
+end
+
+local function buyProductionLevel(player, plotData)
+    if plotData.owner ~= player then return end
+    local level = plotData.productionLevel or 0
+    local config = PRODUCTION_LEVELS[level + 1]
+    if not config then return end
+    local stats = player:FindFirstChild("leaderstats")
+    local cash = stats and stats:FindFirstChild("Factory Cash")
+    if not cash or cash.Value < config.price then return end
+    cash.Value -= config.price
+    plotData.productionLevel = level + 1
+    player:SetAttribute("FactoryProductionLevel", plotData.productionLevel)
+    createProductionMachine(plotData, plotData.productionLevel)
+    updateProductionButton(plotData)
+end
+
 local function updateButton(plotData, id)
     local entry = plotData.buttons[id]
     if not entry then return end
@@ -221,6 +299,23 @@ local function buildShop(plotData)
             buyUpgrade(player, plotData, id)
         end)
     end
+
+    local productionButton = part("ProductionLevelButton", Vector3.new(14, 1, 9),
+        plotData.center + Vector3.new(0, 1.2, 26), Color3.fromRGB(55, 205, 255), shop)
+    productionButton.Material = Enum.Material.Neon
+    local productionPrompt = Instance.new("ProximityPrompt")
+    productionPrompt.Name = "BuyProductionLevel"
+    productionPrompt.ObjectText = "Production Level 1"
+    productionPrompt.ActionText = "Upgrade $500"
+    productionPrompt.HoldDuration = 0.4
+    productionPrompt.MaxActivationDistance = 10
+    productionPrompt.RequiresLineOfSight = false
+    productionPrompt.Parent = productionButton
+    plotData.productionButton = { part = productionButton, prompt = productionPrompt }
+    productionPrompt.Triggered:Connect(function(player)
+        buyProductionLevel(player, plotData)
+    end)
+    updateProductionButton(plotData)
 end
 
 for i = 1, PLOT_COUNT do
@@ -250,6 +345,8 @@ for i = 1, PLOT_COUNT do
         sign = labelOnSign(model, center + Vector3.new(0, 8, -32)),
         boxes = boxes,
         upgrades = { Machine = false, Speed = false, Income = false },
+        productionLevel = 0,
+        productionButton = nil,
         buttons = {},
     }
     plots[i] = plotData
@@ -359,7 +456,9 @@ local function productionLoop(player, plotData)
             if plotData.upgrades.Machine then
                 task.spawn(deliverBox, plotData, player, version, 2)
             end
-            task.wait(plotData.upgrades.Speed and 1 or BOX_INTERVAL)
+            local baseInterval = plotData.upgrades.Speed and 1 or BOX_INTERVAL
+            local levelMultiplier = 1 - ((plotData.productionLevel or 0) * 0.16)
+            task.wait(math.max(0.5, baseInterval * levelMultiplier))
         end
     end)
 end
@@ -373,7 +472,8 @@ local function loadProgress(player)
             if type(result) ~= "table" then result = {} end
             return {
                 cash = math.clamp(math.floor(tonumber(result.cash) or 0), 0, 2000000000),
-                upgrades = type(result.upgrades) == "table" and result.upgrades or {}
+                upgrades = type(result.upgrades) == "table" and result.upgrades or {},
+                productionLevel = math.clamp(math.floor(tonumber(result.productionLevel) or 0), 0, #PRODUCTION_LEVELS)
             }
         end
         warn("Progress load failed: " .. tostring(result))
@@ -399,7 +499,8 @@ local function saveProgress(player)
             Machine = plot.upgrades.Machine,
             Speed = plot.upgrades.Speed,
             Income = plot.upgrades.Income,
-        }
+        },
+        productionLevel = plot.productionLevel or 0
     }
     local success = false
     for attempt = 1, 3 do
@@ -440,6 +541,12 @@ local function assign(player, progress)
                 updateButton(plotData, id)
             end
             if plotData.upgrades.Machine then createExtraMachine(plotData) end
+            plotData.productionLevel = progress.productionLevel or 0
+            player:SetAttribute("FactoryProductionLevel", plotData.productionLevel)
+            for level = 1, plotData.productionLevel do
+                createProductionMachine(plotData, level)
+            end
+            updateProductionButton(plotData)
             productionLoop(player, plotData)
             if player.Character then
                 task.spawn(teleport, player, player.Character)
@@ -461,6 +568,11 @@ local function release(player)
         plotData.upgrades[id] = false
         updateButton(plotData, id)
     end
+    plotData.productionLevel = 0
+    player:SetAttribute("FactoryProductionLevel", 0)
+    local productionMachines = plotData.model:FindFirstChild("ProductionMachines")
+    if productionMachines then productionMachines:Destroy() end
+    updateProductionButton(plotData)
     local extra = plotData.model:FindFirstChild("ExtraMachine")
     if extra then extra:Destroy() end
     playerPlots[player] = nil
@@ -511,6 +623,7 @@ local function createFactoryHUD(player)
     local plotText = label("Plot", 34, 12, Color3.fromRGB(170, 190, 210), "Waiting for factory...")
     local cashText = label("CashAmount", 66, 24, Color3.fromRGB(120, 255, 170), "Factory Cash: $0")
     local upgradesText = label("UpgradeStatus", 110, 12, Color3.new(1, 1, 1), "Machine: OFF  Speed: OFF  Income: OFF")
+    local levelText = label("ProductionLevel", 136, 12, Color3.fromRGB(100, 220, 255), "Production Level: 0 / 3")
 
     local function refreshUpgrades()
         plotText.Text = player:GetAttribute("FactoryPlot") or "Waiting for factory..."
@@ -519,7 +632,9 @@ local function createFactoryHUD(player)
             table.insert(parts, id .. ": " .. (player:GetAttribute("FactoryUpgrade_" .. id) and "ON" or "OFF"))
         end
         upgradesText.Text = table.concat(parts, "  ")
+        levelText.Text = "Production Level: " .. tostring(player:GetAttribute("FactoryProductionLevel") or 0) .. " / 3"
     end
+    player:GetAttributeChangedSignal("FactoryProductionLevel"):Connect(refreshUpgrades)
     player:GetAttributeChangedSignal("FactoryPlot"):Connect(refreshUpgrades)
     for _, id in ipairs(ORDER) do
         player:GetAttributeChangedSignal("FactoryUpgrade_" .. id):Connect(refreshUpgrades)
