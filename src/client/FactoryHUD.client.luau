@@ -7,7 +7,8 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "FactoryHUD"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = false
-gui.DisplayOrder = 20
+gui.DisplayOrder = 100
+gui.Enabled = true
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local function corner(parent, radius)
@@ -34,8 +35,19 @@ end
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
 panel.AnchorPoint = Vector2.new(0, 0)
-panel.Position = UDim2.fromOffset(12, 12)
+panel.Position = UDim2.fromOffset(12, 76)
 panel.Size = UDim2.fromOffset(280, 218)
+local scale = Instance.new("UIScale")
+scale.Name = "ResponsiveScale"
+scale.Parent = panel
+local function updateScale()
+    local camera = workspace.CurrentCamera
+    if camera then
+        scale.Scale = math.clamp(camera.ViewportSize.X / 390, 0.68, 1)
+    end
+end
+updateScale()
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(updateScale)
 panel.BackgroundColor3 = Color3.fromRGB(20, 26, 38)
 panel.BackgroundTransparency = 0.08
 panel.BorderSizePixel = 0
@@ -89,8 +101,14 @@ for _, id in ipairs({"Machine", "Speed", "Income"}) do
 end
 updateUpgrades()
 
-local stats = player:WaitForChild("leaderstats")
-local cash = stats:WaitForChild("Factory Cash")
+-- Panel remains visible even if the server is slow to load data.
+local stats = player:WaitForChild("leaderstats", 30)
+local cash = stats and stats:WaitForChild("Factory Cash", 30)
+if not cash then
+    cashText.Text = "Data unavailable"
+    warn("FactoryHUD: Factory Cash not found on player")
+    return
+end
 local earnings = {}
 local previousCash = cash.Value
 local function formatCash(value)
