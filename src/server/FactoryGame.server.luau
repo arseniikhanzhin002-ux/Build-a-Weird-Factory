@@ -610,6 +610,30 @@ local function createProductionMachine(plotData, level)
     light.Brightness = 1.5
     light.Range = 14
     light.Parent = core
+
+    -- Distinct goofy details on every purchased production machine.
+    local eyeWhite = Color3.fromRGB(250, 250, 240)
+    local pupilBlack = Color3.fromRGB(20, 20, 28)
+    for eye = 1, 2 do
+        local offset = (eye - 1.5) * 1.65
+        decorativePart("MachineGooglyEye", Vector3.new(1.15, 1.15, 0.45),
+            CFrame.new(position + Vector3.new(offset, 1.6, 3.72)),
+            eyeWhite, Enum.Material.SmoothPlastic, machine, Enum.PartType.Ball)
+        decorativePart("MachinePupil", Vector3.new(0.42, 0.42, 0.2),
+            CFrame.new(position + Vector3.new(offset + 0.1, 1.55, 4.02)),
+            pupilBlack, Enum.Material.SmoothPlastic, machine, Enum.PartType.Ball)
+    end
+    local antenna = decorativePart("WobbleAntenna", Vector3.new(0.25, 2.2, 0.25),
+        CFrame.new(position + Vector3.new(0, 4.5, 0)) * CFrame.Angles(0, 0, math.rad(12)),
+        Color3.fromRGB(255, 190, 40), Enum.Material.Metal, machine)
+    decorativePart("AntennaOrb", Vector3.new(0.8, 0.8, 0.8),
+        CFrame.new(antenna.Position + Vector3.new(0, 1.15, 0)),
+        Color3.fromRGB(255, 75, 180), Enum.Material.Neon, machine, Enum.PartType.Ball)
+    local pipeColor = level == 1 and Color3.fromRGB(120, 255, 70)
+        or (level == 2 and Color3.fromRGB(70, 220, 255) or Color3.fromRGB(205, 90, 255))
+    decorativePart("MachineExhaustPipe", Vector3.new(0.8, 3.8, 0.8),
+        CFrame.new(position + Vector3.new(-3.5, 2.5, -1.8)) * CFrame.Angles(0, 0, math.rad(-18)),
+        pipeColor, Enum.Material.Neon, machine, Enum.PartType.Cylinder)
     local sign = Instance.new("BillboardGui")
     sign.Name = "MachineLevel"
     sign.Size = UDim2.fromOffset(150, 30)
