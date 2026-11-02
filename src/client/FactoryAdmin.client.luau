@@ -172,14 +172,19 @@ adminAction.OnClientEvent:Connect(function(kind, success, message)
         status.Text = tostring(message or (success and "Done." or "Failed."))
         status.TextColor3 = success and Color3.fromRGB(100, 235, 145) or Color3.fromRGB(255, 120, 105)
         resetButton.Text = "RESET SELECTED ACCOUNT"
+    elseif kind == "ProductionState" then
+        status.Text = success and "All factories stopped." or "All factories running."
+        status.TextColor3 = success and Color3.fromRGB(255, 170, 100) or Color3.fromRGB(100, 235, 145)
     end
 end)
 
-local paused = false
-local pauseButton = addButton("StopAllProduction", "STOP ALL FACTORIES", 12, 365, 286, Color3.fromRGB(190, 125, 35), function()
-    paused = not paused
-    adminAction:FireServer("StopAllProduction", paused)
-    pauseButton.Text = paused and "RESUME ALL FACTORIES" or "STOP ALL FACTORIES"
+local pauseButton = addButton("StopAllProduction", "STOP ALL FACTORIES", 12, 365, 138, Color3.fromRGB(190, 85, 45), function()
+    adminAction:FireServer("StopAllProduction")
+    status.Text = "Stop command sent."
+end)
+local resumeButton = addButton("ResumeAllProduction", "RESUME ALL", 160, 365, 138, Color3.fromRGB(35, 145, 85), function()
+    adminAction:FireServer("ResumeAllProduction")
+    status.Text = "Resume command sent."
 end)
 
 toggle.Activated:Connect(function()
