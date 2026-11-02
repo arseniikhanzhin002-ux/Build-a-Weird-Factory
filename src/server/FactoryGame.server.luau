@@ -30,6 +30,7 @@ local DAILY_QUESTS = {
     { id = "rare", title = "Oddity Hunter", description = "Produce 3 unique items", target = 3, reward = 1000 },
 }
 local playerPlots = {}
+local plots = {}
 
 
 local UPGRADES = {
@@ -274,8 +275,6 @@ if previous then previous:Destroy() end
 local folder = Instance.new("Folder")
 folder.Name = "FactoryPlots"
 folder.Parent = workspace
-
-local plots = {}
 
 local function part(name, size, position, color, parent)
     local p = Instance.new("Part")
