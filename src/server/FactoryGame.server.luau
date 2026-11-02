@@ -467,8 +467,83 @@ local function release(player)
     player:SetAttribute("FactoryPlot", nil)
 end
 
+-- Server-side fallback HUD: visible even when client scripts were not synced by Rojo.
+local function createFactoryHUD(player)
+    local playerGui = player:WaitForChild("PlayerGui", 15)
+    if not playerGui then return end
+    if playerGui:FindFirstChild("FactoryHUD") then return end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "FactoryHUD"
+    gui.ResetOnSpawn = false
+    gui.DisplayOrder = 100
+    gui.Parent = playerGui
+
+    local panel = Instance.new("Frame")
+    panel.Name = "Panel"
+    panel.Position = UDim2.fromOffset(12, 76)
+    panel.Size = UDim2.fromOffset(280, 175)
+    panel.BackgroundColor3 = Color3.fromRGB(20, 26, 38)
+    panel.BackgroundTransparency = 0.08
+    panel.BorderSizePixel = 0
+    panel.Parent = gui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = panel
+
+    local function label(name, y, size, color, value)
+        local element = Instance.new("TextLabel")
+        element.Name = name
+        element.Position = UDim2.fromOffset(14, y)
+        element.Size = UDim2.new(1, -28, 0, 26)
+        element.BackgroundTransparency = 1
+        element.Font = Enum.Font.GothamBold
+        element.TextSize = size
+        element.TextXAlignment = Enum.TextXAlignment.Left
+        element.TextColor3 = color
+        element.Text = value
+        element.Parent = panel
+        return element
+    end
+
+    label("Title", 8, 18, Color3.new(1, 1, 1), "WEIRD FACTORY")
+    local plotText = label("Plot", 34, 12, Color3.fromRGB(170, 190, 210), "Waiting for factory...")
+    local cashText = label("CashAmount", 66, 24, Color3.fromRGB(120, 255, 170), "Factory Cash: $0")
+    local upgradesText = label("UpgradeStatus", 110, 12, Color3.new(1, 1, 1), "Machine: OFF  Speed: OFF  Income: OFF")
+
+    local function refreshUpgrades()
+        plotText.Text = player:GetAttribute("FactoryPlot") or "Waiting for factory..."
+        local parts = {}
+        for _, id in ipairs(ORDER) do
+            table.insert(parts, id .. ": " .. (player:GetAttribute("FactoryUpgrade_" .. id) and "ON" or "OFF"))
+        end
+        upgradesText.Text = table.concat(parts, "  ")
+    end
+    player:GetAttributeChangedSignal("FactoryPlot"):Connect(refreshUpgrades)
+    for _, id in ipairs(ORDER) do
+        player:GetAttributeChangedSignal("FactoryUpgrade_" .. id):Connect(refreshUpgrades)
+    end
+    refreshUpgrades()
+
+    task.spawn(function()
+        local stats = player:WaitForChild("leaderstats", 30)
+        local cash = stats and stats:WaitForChild("Factory Cash", 30)
+        if not cash then
+            cashText.Text = "Factory Cash: unavailable"
+            return
+        end
+        local function refreshCash()
+            cashText.Text = "Factory Cash: $" .. tostring(cash.Value)
+        end
+        cash:GetPropertyChangedSignal("Value"):Connect(refreshCash)
+        refreshCash()
+    end)
+end
+
 local function onPlayerAdded(player)
     if player:FindFirstChild("leaderstats") then return end
+    task.spawn(createFactoryHUD, player)
     local progress = loadProgress(player)
     if not progress then
         if game:GetService("RunService"):IsStudio() then
