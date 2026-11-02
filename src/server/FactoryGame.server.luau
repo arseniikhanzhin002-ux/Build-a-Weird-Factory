@@ -515,12 +515,15 @@ local function loadProgress(player)
         end)
         if ok then
             if type(result) ~= "table" then result = {} end
-            return {
+            local progress = {
                 cash = math.clamp(math.floor(tonumber(result.cash) or 0), 0, 2000000000),
                 upgrades = type(result.upgrades) == "table" and result.upgrades or {},
                 productionLevel = math.clamp(math.floor(tonumber(result.productionLevel) or 0), 0, #PRODUCTION_LEVELS),
                 machineProductCount = math.clamp(math.floor(tonumber(result.machineProductCount) or 0), 0, 2000000000)
             }
+            print(("[FactorySave] Loaded %s: cash=$%d, production=%d"):format(
+                player.Name, progress.cash, progress.productionLevel))
+            return progress
         end
         warn("Progress load failed: " .. tostring(result))
         if attempt < 3 then task.wait(attempt * 2) end
@@ -561,6 +564,10 @@ saveProgress = function(player)
         if attempt < 3 then task.wait(attempt * 2) end
     end
     saving[player] = nil
+    if success then
+        print(("[FactorySave] Saved %s: cash=$%d, production=%d"):format(
+            player.Name, snapshot.cash, snapshot.productionLevel))
+    end
     return success
 end
 
@@ -729,7 +736,12 @@ local function onPlayerAdded(player)
     cash.Value = progress.cash
     cash.Parent = stats
     assign(player, progress)
-    if playerPlots[player] and progress ~= nil and not (game:GetService("RunService"):IsStudio() and player:GetAttribute("TemporaryFactorySession")) then ready[player] = true end
+    if playerPlots[player] and progress ~= nil and not (game:GetService("RunService"):IsStudio() and player:GetAttribute("TemporaryFactorySession")) then
+        ready[player] = true
+        print("[FactorySave] DataStore ready for " .. player.Name)
+    elseif player:GetAttribute("TemporaryFactorySession") then
+        warn("[FactorySave] Temporary Studio session: progress will NOT be saved. Check published experience and API Services.")
+    end
     player.CharacterAdded:Connect(function(character)
         teleport(player, character)
     end)
