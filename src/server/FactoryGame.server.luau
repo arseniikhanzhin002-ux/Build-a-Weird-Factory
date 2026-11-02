@@ -563,6 +563,7 @@ for i = 1, PLOT_COUNT do
         machineProductCount = 0,
         collection = {},
         firstGlitchCubeRewardClaimed = false,
+        dailyQuests = freshDailyQuests(),
         productionButton = nil,
         buttons = {},
     }
@@ -616,6 +617,8 @@ local function deliverBox(plotData, player, version, lane)
     plotData.collection = plotData.collection or {}
     plotData.collection[product.name] = (plotData.collection[product.name] or 0) + 1
     collectionUpdated:FireClient(player, product.name, plotData.collection[product.name])
+    addQuestProgress(player, "produce", 1)
+    if product.machineLevel then addQuestProgress(player, "rare", 1) end
     if product.name == "Glitch Cube" and not plotData.firstGlitchCubeRewardClaimed then
         plotData.firstGlitchCubeRewardClaimed = true
         local stats = player:FindFirstChild("leaderstats")
@@ -835,6 +838,7 @@ local function deliverBox(plotData, player, version, lane)
         if cash then
             local earned = (plotData.upgrades.Income and 10 or BOX_REWARD) * product.multiplier
             cash.Value += earned
+            addQuestProgress(player, "sell", earned)
             showSalePopup(plotData, earned)
         end
     end
@@ -875,7 +879,8 @@ local function loadProgress(player)
                 productionLevel = math.clamp(math.floor(tonumber(result.productionLevel) or 0), 0, #PRODUCTION_LEVELS),
                 machineProductCount = math.clamp(math.floor(tonumber(result.machineProductCount) or 0), 0, 2000000000),
                 collection = {},
-                firstGlitchCubeRewardClaimed = result.firstGlitchCubeRewardClaimed == true
+                firstGlitchCubeRewardClaimed = result.firstGlitchCubeRewardClaimed == true,
+                dailyQuests = normalizeDailyQuests(result.dailyQuests)
             }
             if type(result.collection) == "table" then
                 for name, count in pairs(result.collection) do
@@ -918,7 +923,8 @@ saveProgress = function(player)
         productionLevel = plot.productionLevel or 0,
         machineProductCount = plot.machineProductCount or 0,
         collection = table.clone(plot.collection or {}),
-        firstGlitchCubeRewardClaimed = plot.firstGlitchCubeRewardClaimed == true
+        firstGlitchCubeRewardClaimed = plot.firstGlitchCubeRewardClaimed == true,
+        dailyQuests = normalizeDailyQuests(plot.dailyQuests)
     }
     local success = false
     for attempt = 1, 3 do
@@ -967,12 +973,14 @@ local function assign(player, progress)
             plotData.machineProductCount = progress.machineProductCount or 0
             plotData.collection = progress.collection or {}
             plotData.firstGlitchCubeRewardClaimed = progress.firstGlitchCubeRewardClaimed == true
+            plotData.dailyQuests = normalizeDailyQuests(progress.dailyQuests)
             player:SetAttribute("FactoryProductionLevel", plotData.productionLevel)
             for level = 1, plotData.productionLevel do
                 createProductionMachine(plotData, level)
             end
             updateProductionButton(plotData)
             productionLoop(player, plotData)
+            task.defer(sendDailyQuests, player)
             if player.Character then
                 task.spawn(teleport, player, player.Character)
             end
@@ -997,6 +1005,7 @@ local function release(player)
     plotData.machineProductCount = 0
     plotData.collection = {}
     plotData.firstGlitchCubeRewardClaimed = false
+    plotData.dailyQuests = freshDailyQuests()
     player:SetAttribute("FactoryProductionLevel", 0)
     local productionMachines = plotData.model:FindFirstChild("ProductionMachines")
     if productionMachines then productionMachines:Destroy() end
