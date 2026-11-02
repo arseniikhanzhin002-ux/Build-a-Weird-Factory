@@ -217,7 +217,25 @@ local function resetOnlinePlayerProgress(target)
 
     for _, id in ipairs(ORDER) do
         target:SetAttribute("FactoryUpgrade_" .. id, false)
-        updateButton(plotData, id)
+    end
+
+    -- Rebuild the whole upgrade shop after reset instead of relying on previously hidden
+    -- button instances. This guarantees fresh visible pads and enabled purchase prompts.
+    local oldShop = plotData.model:FindFirstChild("UpgradeShop")
+    if oldShop then oldShop:Destroy() end
+    plotData.buttons = {}
+    plotData.productionButton = nil
+    buildShop(plotData)
+    for _, id in ipairs(ORDER) do
+        local entry = plotData.buttons[id]
+        if entry and entry.part and entry.prompt then
+            entry.part.Transparency = 0
+            entry.part.LocalTransparencyModifier = 0
+            entry.part.CanCollide = true
+            entry.part.CanTouch = true
+            entry.part.CanQuery = true
+            entry.prompt.Enabled = true
+        end
     end
 
     local machines = plotData.model:FindFirstChild("ProductionMachines")
