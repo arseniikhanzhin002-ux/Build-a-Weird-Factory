@@ -457,6 +457,50 @@ local function deliverBox(plotData, player, version, lane)
     box.Material = product.machineLevel and Enum.Material.Neon or Enum.Material.SmoothPlastic
     box.CanCollide = false
 
+    -- Rare signature products get a brief flash and a lightweight confetti burst.
+    if product.machineLevel then
+        local rarityColor = product.color
+        local flash = Instance.new("PointLight")
+        flash.Name = "RareDropFlash"
+        flash.Color = rarityColor
+        flash.Brightness = 5
+        flash.Range = 18
+        flash.Parent = box
+        local flashTween = TweenService:Create(flash, TweenInfo.new(0.65, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Brightness = 0,
+            Range = 4,
+        })
+        flashTween:Play()
+        task.delay(0.75, function()
+            if flash.Parent then flash:Destroy() end
+        end)
+
+        local burst = Instance.new("ParticleEmitter")
+        burst.Name = "RareDropConfetti"
+        burst.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+        burst.Color = ColorSequence.new(rarityColor, Color3.new(1, 1, 1))
+        burst.LightEmission = 0.9
+        burst.Lifetime = NumberRange.new(0.45, 0.9)
+        burst.Speed = NumberRange.new(7, 13)
+        burst.SpreadAngle = Vector2.new(180, 180)
+        burst.Rotation = NumberRange.new(0, 360)
+        burst.RotSpeed = NumberRange.new(-180, 180)
+        burst.Size = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.22),
+            NumberSequenceKeypoint.new(1, 0.04),
+        })
+        burst.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0),
+            NumberSequenceKeypoint.new(1, 1),
+        })
+        burst.Rate = 0
+        burst.Parent = box
+        burst:Emit(22)
+        task.delay(1.2, function()
+            if burst.Parent then burst:Destroy() end
+        end)
+    end
+
     -- Every conveyor item gets a compact name tag, including common products.
     -- AlwaysOnTop keeps tags readable when machines or other boxes pass behind them.
     local billboard = Instance.new("BillboardGui")
