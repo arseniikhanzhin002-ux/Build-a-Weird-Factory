@@ -499,6 +499,80 @@ local function deliverBox(plotData, player, version, lane)
         task.delay(1.2, function()
             if burst.Parent then burst:Destroy() end
         end)
+
+        -- LEGENDARY gets an additional gold explosion and a floating announcement.
+        if product.machineLevel == 3 then
+            local gold = Color3.fromRGB(255, 190, 45)
+            local legendaryFlash = Instance.new("PointLight")
+            legendaryFlash.Name = "LegendaryGoldFlash"
+            legendaryFlash.Color = gold
+            legendaryFlash.Brightness = 9
+            legendaryFlash.Range = 28
+            legendaryFlash.Parent = box
+            TweenService:Create(legendaryFlash, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Brightness = 0,
+                Range = 5,
+            }):Play()
+            task.delay(1, function()
+                if legendaryFlash.Parent then legendaryFlash:Destroy() end
+            end)
+
+            local explosion = Instance.new("ParticleEmitter")
+            explosion.Name = "LegendaryGoldExplosion"
+            explosion.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+            explosion.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 245, 170)),
+                ColorSequenceKeypoint.new(0.5, gold),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 115, 20)),
+            })
+            explosion.LightEmission = 1
+            explosion.Lifetime = NumberRange.new(0.7, 1.35)
+            explosion.Speed = NumberRange.new(12, 22)
+            explosion.SpreadAngle = Vector2.new(180, 180)
+            explosion.Rotation = NumberRange.new(0, 360)
+            explosion.RotSpeed = NumberRange.new(-240, 240)
+            explosion.Size = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.42),
+                NumberSequenceKeypoint.new(1, 0.03),
+            })
+            explosion.Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0),
+                NumberSequenceKeypoint.new(1, 1),
+            })
+            explosion.Rate = 0
+            explosion.Parent = box
+            explosion:Emit(48)
+            task.delay(1.7, function()
+                if explosion.Parent then explosion:Destroy() end
+            end)
+
+            local announcement = Instance.new("BillboardGui")
+            announcement.Name = "LegendaryAnnouncement"
+            announcement.Size = UDim2.fromOffset(190, 54)
+            announcement.StudsOffsetWorldSpace = Vector3.new(0, 5.2, 0)
+            announcement.AlwaysOnTop = true
+            announcement.MaxDistance = 65
+            announcement.Parent = box
+
+            local announcementText = Instance.new("TextLabel")
+            announcementText.Size = UDim2.fromScale(1, 1)
+            announcementText.BackgroundTransparency = 1
+            announcementText.Text = "★ LEGENDARY ★"
+            announcementText.TextColor3 = gold
+            announcementText.TextStrokeColor3 = Color3.fromRGB(85, 45, 0)
+            announcementText.TextStrokeTransparency = 0.1
+            announcementText.TextScaled = true
+            announcementText.Font = Enum.Font.GothamBlack
+            announcementText.Parent = announcement
+
+            TweenService:Create(announcementText, TweenInfo.new(1.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                TextTransparency = 1,
+                TextStrokeTransparency = 1,
+            }):Play()
+            task.delay(2, function()
+                if announcement.Parent then announcement:Destroy() end
+            end)
+        end
     end
 
     -- Every conveyor item gets a compact name tag, including common products.
