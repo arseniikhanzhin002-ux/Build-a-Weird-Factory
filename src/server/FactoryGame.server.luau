@@ -304,20 +304,31 @@ local function deliverBox(plotData, player, version, lane)
     box.Shape = product.shape
     box.CanCollide = false
 
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ProductLabel"
-    billboard.Size = UDim2.fromOffset(150, 38)
-    billboard.StudsOffsetWorldSpace = Vector3.new(0, 2.7, 0)
-    billboard.AlwaysOnTop = true
-    billboard.Parent = box
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.fromScale(1, 1)
-    title.BackgroundTransparency = 1
-    title.TextScaled = true
-    title.TextStrokeTransparency = 0.4
-    title.TextColor3 = Color3.new(1, 1, 1)
-    title.Text = product.name .. " x" .. product.multiplier
-    title.Parent = billboard
+    -- Keep labels compact: common items have no labels, rare items show
+    -- their name only nearby. This avoids overlapping text on busy belts.
+    if product.multiplier >= 3 then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ProductLabel"
+        billboard.Size = UDim2.fromOffset(116, 24)
+        billboard.StudsOffsetWorldSpace = Vector3.new(0, lane == 2 and 3.5 or 2.6, 0)
+        billboard.MaxDistance = 28
+        billboard.AlwaysOnTop = false
+        billboard.Parent = box
+        local title = Instance.new("TextLabel")
+        title.Size = UDim2.fromScale(1, 1)
+        title.BackgroundColor3 = Color3.fromRGB(18, 24, 36)
+        title.BackgroundTransparency = 0.2
+        title.TextScaled = false
+        title.TextSize = 12
+        title.Font = Enum.Font.GothamBold
+        title.TextStrokeTransparency = 0.65
+        title.TextColor3 = Color3.new(1, 1, 1)
+        title.Text = product.name .. " x" .. product.multiplier
+        title.Parent = billboard
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 5)
+        corner.Parent = title
+    end
 
     local tween = TweenService:Create(box,
         TweenInfo.new(TRAVEL_TIME, Enum.EasingStyle.Linear),
