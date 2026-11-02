@@ -580,6 +580,44 @@ local function decorateFactory(model, center)
         textLabel.Font = Enum.Font.GothamBlack
         textLabel.Parent = surface
     end
+
+    -- Extra Weird identity added to every factory plot.
+    local signBase = center + Vector3.new(0, 10, 34)
+    local weirdSign = decorativePart("WeirdOMaticSign", Vector3.new(16, 3.2, 0.6),
+        CFrame.new(signBase), Color3.fromRGB(55, 35, 75), Enum.Material.Metal, decoration)
+    local signGui = Instance.new("SurfaceGui")
+    signGui.Face = Enum.NormalId.Front
+    signGui.Parent = weirdSign
+    local signText = Instance.new("TextLabel")
+    signText.Size = UDim2.fromScale(1, 1)
+    signText.BackgroundTransparency = 1
+    signText.Text = "WEIRD-O-MATIC!"
+    signText.TextColor3 = hotPink
+    signText.TextStrokeTransparency = 0.35
+    signText.TextScaled = true
+    signText.Font = Enum.Font.GothamBlack
+    signText.Parent = signGui
+
+    for index, x in ipairs({-32, -24, 24, 32}) do
+        local boltColor = index % 2 == 0 and toxicGreen or hotPink
+        decorativePart("ChaosFloorBolt", Vector3.new(1.2, 0.25, 1.2),
+            CFrame.new(center + Vector3.new(x, 0.82, 27)),
+            boltColor, Enum.Material.Neon, decoration, Enum.PartType.Cylinder)
+    end
+
+    for _, x in ipairs({-8, 8}) do
+        local antennaPole = decorativePart("WackyAntenna", Vector3.new(0.35, 5, 0.35),
+            CFrame.new(center + Vector3.new(x, 12, -34)) * CFrame.Angles(0, 0, math.rad(x > 0 and 15 or -15)),
+            steel, Enum.Material.Metal, decoration)
+        local antennaTip = decorativePart("AntennaTip", Vector3.new(1.1, 1.1, 1.1),
+            CFrame.new(antennaPole.Position + Vector3.new(0, 2.8, 0)),
+            x > 0 and toxicGreen or hotPink, Enum.Material.Neon, decoration, Enum.PartType.Ball)
+        local antennaLight = Instance.new("PointLight")
+        antennaLight.Color = antennaTip.Color
+        antennaLight.Brightness = 0.8
+        antennaLight.Range = 8
+        antennaLight.Parent = antennaTip
+    end
 end
 
 local function createExtraMachine(plotData)
