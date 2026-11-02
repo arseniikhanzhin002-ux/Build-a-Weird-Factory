@@ -194,6 +194,7 @@ local function buyUpgrade(player, plotData, id)
     -- This callback runs on the server; there are no yields between validation and payment.
     cash.Value -= config.price
     plotData.upgrades[id] = true
+    player:SetAttribute("FactoryUpgrade_" .. id, true)
     if id == "Machine" then createExtraMachine(plotData) end
     updateButton(plotData, id)
 end
@@ -420,9 +421,11 @@ local function assign(player, progress)
             plotData.owner = player
             plotData.version += 1
             playerPlots[player] = plotData
+            player:SetAttribute("FactoryPlot", plotData.model.Name)
             plotData.sign.Text = player.DisplayName .. "'s Factory"
             for _, id in ipairs(ORDER) do
                 plotData.upgrades[id] = progress.upgrades[id] == true
+                player:SetAttribute("FactoryUpgrade_" .. id, plotData.upgrades[id])
                 updateButton(plotData, id)
             end
             if plotData.upgrades.Machine then createExtraMachine(plotData) end
@@ -450,6 +453,7 @@ local function release(player)
     local extra = plotData.model:FindFirstChild("ExtraMachine")
     if extra then extra:Destroy() end
     playerPlots[player] = nil
+    player:SetAttribute("FactoryPlot", nil)
 end
 
 local function onPlayerAdded(player)
