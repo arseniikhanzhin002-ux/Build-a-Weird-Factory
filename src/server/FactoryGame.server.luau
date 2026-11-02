@@ -28,9 +28,9 @@ local UPGRADES = {
 }
 local ORDER = { "Machine", "Speed", "Income" }
 local PRODUCTION_LEVELS = {
-    { price = 500, title = "Assembly Machine Mk II", color = Color3.fromRGB(55, 205, 255) },
-    { price = 1500, title = "Turbo Press Mk III", color = Color3.fromRGB(255, 135, 45) },
-    { price = 5000, title = "Quantum Assembler Mk IV", color = Color3.fromRGB(190, 95, 255) },
+    { price = 500, title = "Assembly Machine Mk II", color = Color3.fromRGB(55, 205, 255), product = { name = "Clockwork Duck", multiplier = 4, color = Color3.fromRGB(65, 220, 255), shape = Enum.PartType.Ball } },
+    { price = 1500, title = "Turbo Press Mk III", color = Color3.fromRGB(255, 135, 45), product = { name = "Plasma Donut", multiplier = 7, color = Color3.fromRGB(255, 90, 185), shape = Enum.PartType.Cylinder } },
+    { price = 5000, title = "Quantum Assembler Mk IV", color = Color3.fromRGB(190, 95, 255), product = { name = "Glitch Cube", multiplier = 12, color = Color3.fromRGB(150, 100, 255), shape = Enum.PartType.Block } },
 }
 
 -- Stage 3: unusual products with different rewards.
@@ -44,7 +44,18 @@ local PRODUCTS = {
 }
 local productRandom = Random.new()
 
-local function rollProduct()
+local function rollProduct(plotData)
+    -- Every eighth box is a signature item from an unlocked production machine.
+    -- Unlocked machine products rotate in order when multiple levels are owned.
+    local level = plotData.productionLevel or 0
+    if level > 0 then
+        plotData.machineProductCount = (plotData.machineProductCount or 0) + 1
+        if plotData.machineProductCount % 8 == 0 then
+            local unlockedIndex = (math.floor(plotData.machineProductCount / 8) - 1) % level + 1
+            local signature = PRODUCTION_LEVELS[unlockedIndex].product
+            return { name = signature.name, weight = 0, multiplier = signature.multiplier, color = signature.color, shape = signature.shape, machineLevel = unlockedIndex }
+        end
+    end
     local total = 0
     for _, product in ipairs(PRODUCTS) do
         total += product.weight
@@ -212,7 +223,7 @@ local function createProductionMachine(plotData, level)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.fromScale(1, 1)
     label.BackgroundTransparency = 1
-    label.Text = "LEVEL " .. level .. " - " .. config.title
+    label.Text = "LEVEL " .. level .. " - " .. config.title .. "\nMakes: " .. config.product.name
     label.TextColor3 = Color3.new(1, 1, 1)
     label.TextStrokeTransparency = 0.3
     label.TextScaled = true
@@ -346,6 +357,7 @@ for i = 1, PLOT_COUNT do
         boxes = boxes,
         upgrades = { Machine = false, Speed = false, Income = false },
         productionLevel = 0,
+        machineProductCount = 0,
         productionButton = nil,
         buttons = {},
     }
@@ -394,11 +406,12 @@ end
 local function deliverBox(plotData, player, version, lane)
     if plotData.owner ~= player or plotData.version ~= version then return end
     local zOffset = lane == 2 and -2 or 2
-    local product = rollProduct()
+    local product = rollProduct(plotData)
     local box = part(product.name, Vector3.new(3, 3, 3),
         plotData.center + Vector3.new(-16, 4, zOffset),
         product.color, plotData.boxes)
     box.Shape = product.shape
+    box.Material = product.machineLevel and Enum.Material.Neon or Enum.Material.SmoothPlastic
     box.CanCollide = false
 
     -- Keep labels compact: common items have no labels, rare items show
@@ -569,6 +582,7 @@ local function release(player)
         updateButton(plotData, id)
     end
     plotData.productionLevel = 0
+    plotData.machineProductCount = 0
     player:SetAttribute("FactoryProductionLevel", 0)
     local productionMachines = plotData.model:FindFirstChild("ProductionMachines")
     if productionMachines then productionMachines:Destroy() end
