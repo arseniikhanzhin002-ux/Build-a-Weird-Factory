@@ -414,31 +414,33 @@ local function deliverBox(plotData, player, version, lane)
     box.Material = product.machineLevel and Enum.Material.Neon or Enum.Material.SmoothPlastic
     box.CanCollide = false
 
-    -- Keep labels compact: common items have no labels, rare items show
-    -- their name only nearby. This avoids overlapping text on busy belts.
-    if product.multiplier >= 3 then
-        local billboard = Instance.new("BillboardGui")
-        billboard.Name = "ProductLabel"
-        billboard.Size = UDim2.fromOffset(116, 24)
-        billboard.StudsOffsetWorldSpace = Vector3.new(0, lane == 2 and 3.5 or 2.6, 0)
-        billboard.MaxDistance = 28
-        billboard.AlwaysOnTop = false
-        billboard.Parent = box
-        local title = Instance.new("TextLabel")
-        title.Size = UDim2.fromScale(1, 1)
-        title.BackgroundColor3 = Color3.fromRGB(18, 24, 36)
-        title.BackgroundTransparency = 0.2
-        title.TextScaled = false
-        title.TextSize = 12
-        title.Font = Enum.Font.GothamBold
-        title.TextStrokeTransparency = 0.65
-        title.TextColor3 = Color3.new(1, 1, 1)
-        title.Text = product.name .. " x" .. product.multiplier
-        title.Parent = billboard
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 5)
-        corner.Parent = title
-    end
+    -- Every conveyor item gets a compact name tag, including common products.
+    -- AlwaysOnTop keeps tags readable when machines or other boxes pass behind them.
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ProductLabel"
+    billboard.Size = UDim2.fromOffset(112, 22)
+    billboard.StudsOffsetWorldSpace = Vector3.new(0, lane == 2 and 3.7 or 2.8, 0)
+    billboard.MaxDistance = 45
+    billboard.AlwaysOnTop = true
+    billboard.LightInfluence = 0
+    billboard.Parent = box
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.fromScale(1, 1)
+    title.BackgroundColor3 = Color3.fromRGB(18, 24, 36)
+    title.BackgroundTransparency = 0.15
+    title.TextScaled = false
+    title.TextSize = 11
+    title.TextTruncate = Enum.TextTruncate.AtEnd
+    title.Font = Enum.Font.GothamBold
+    title.TextStrokeTransparency = 0.65
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.Text = product.name .. " x" .. product.multiplier
+    title.Parent = billboard
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 5)
+    corner.Parent = title
 
     local tween = TweenService:Create(box,
         TweenInfo.new(TRAVEL_TIME, Enum.EasingStyle.Linear),
