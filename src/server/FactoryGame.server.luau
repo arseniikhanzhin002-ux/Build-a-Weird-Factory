@@ -248,12 +248,12 @@ adminAction.OnServerEvent:Connect(function(player, action, value)
             if candidate.name == value then product = candidate break end
         end
         if not product then
-            for _, level in ipairs(PRODUCTION_LEVELS) do
+            for machineLevel, level in ipairs(PRODUCTION_LEVELS) do
                 if level.product.name == value then
                     product = {
                         name = level.product.name, color = level.product.color,
                         shape = level.product.shape, multiplier = level.product.multiplier,
-                        machineLevel = 3, rarity = level.rarity,
+                        machineLevel = machineLevel, rarity = level.rarity,
                     }
                     break
                 end
@@ -277,6 +277,10 @@ adminAction.OnServerEvent:Connect(function(player, action, value)
         spawned.CanCollide = false
         spawned.Position = plotData.center + Vector3.new(-16, 4, 2)
         spawned.Parent = folder
+        plotData.collection = plotData.collection or {}
+        plotData.collection[product.name] = (plotData.collection[product.name] or 0) + 1
+        collectionUpdated:FireClient(player, product.name, plotData.collection[product.name])
+        saveAdminTarget(player)
         local targetPosition = plotData.center + Vector3.new(16, 4, 2)
         local tween = TweenService:Create(spawned, TweenInfo.new(TRAVEL_TIME, Enum.EasingStyle.Linear), { Position = targetPosition })
         tween:Play()
