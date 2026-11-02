@@ -189,7 +189,7 @@ local function createProductionMachine(plotData, level)
         machines.Name = "ProductionMachines"
         machines.Parent = plotData.model
     end
-    local positions = { Vector3.new(0, 4, -15), Vector3.new(14, 4, -15), Vector3.new(-14, 4, -15) }
+    local positions = { Vector3.new(0, 4, -15), Vector3.new(14, 4, -15), Vector3.new(28, 4, -15) }
     local position = plotData.center + positions[level]
     local machine = Instance.new("Model")
     machine.Name = "ProductionMachine_" .. level
