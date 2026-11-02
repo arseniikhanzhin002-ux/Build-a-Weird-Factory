@@ -68,106 +68,93 @@ corner(toggle, 8)
 local panel = Instance.new("Frame")
 panel.Name = "AdminPanel"
 panel.Position = UDim2.fromOffset(12, 312)
-panel.Size = UDim2.fromOffset(290, 260)
+panel.Size = UDim2.fromOffset(310, 360)
 panel.BackgroundColor3 = Color3.fromRGB(22, 27, 39)
 panel.BorderSizePixel = 0
 panel.Visible = false
 panel.Parent = screen
 corner(panel, 12)
-
 local stroke = Instance.new("UIStroke")
 stroke.Color = Color3.fromRGB(255, 180, 55)
 stroke.Thickness = 1.5
 stroke.Parent = panel
 
-local function label(text, y, height)
+local function addLabel(text, y)
     local item = Instance.new("TextLabel")
     item.Position = UDim2.fromOffset(12, y)
-    item.Size = UDim2.new(1, -24, 0, height)
+    item.Size = UDim2.new(1, -24, 0, 22)
     item.BackgroundTransparency = 1
     item.Text = text
     item.TextColor3 = Color3.fromRGB(245, 245, 250)
-    item.TextSize = 14
+    item.TextSize = 13
     item.Font = Enum.Font.GothamBold
     item.TextXAlignment = Enum.TextXAlignment.Left
     item.Parent = panel
-    return item
 end
 
-label("FACTORY ADMIN", 8, 26)
-label("Give Factory Cash", 40, 20)
+local function addInput(name, placeholder, y)
+    local input = Instance.new("TextBox")
+    input.Name = name
+    input.Position = UDim2.fromOffset(12, y)
+    input.Size = UDim2.new(1, -24, 0, 32)
+    input.BackgroundColor3 = Color3.fromRGB(42, 50, 66)
+    input.TextColor3 = Color3.new(1, 1, 1)
+    input.PlaceholderText = placeholder
+    input.PlaceholderColor3 = Color3.fromRGB(170, 180, 195)
+    input.Text = ""
+    input.ClearTextOnFocus = false
+    input.TextSize = 12
+    input.Font = Enum.Font.Gotham
+    input.Parent = panel
+    corner(input, 7)
+    return input
+end
 
-local amount = Instance.new("TextBox")
-amount.Position = UDim2.fromOffset(12, 64)
-amount.Size = UDim2.new(1, -24, 0, 34)
-amount.BackgroundColor3 = Color3.fromRGB(42, 50, 66)
-amount.TextColor3 = Color3.new(1, 1, 1)
-amount.PlaceholderText = "Amount (1 - 1,000,000,000)"
-amount.PlaceholderColor3 = Color3.fromRGB(170, 180, 195)
-amount.Text = ""
-amount.ClearTextOnFocus = false
-amount.TextSize = 13
-amount.Font = Enum.Font.Gotham
-amount.Parent = panel
-corner(amount, 7)
-
-local give = Instance.new("TextButton")
-give.Position = UDim2.fromOffset(12, 106)
-give.Size = UDim2.new(1, -24, 0, 34)
-give.BackgroundColor3 = Color3.fromRGB(40, 145, 85)
-give.Text = "GIVE CASH"
-give.TextColor3 = Color3.new(1, 1, 1)
-give.TextSize = 13
-give.Font = Enum.Font.GothamBold
-give.Parent = panel
-corner(give, 7)
-
-label("Spawn a block", 148, 20)
-
-local function spawnButton(text, x, shape)
+local function addButton(name, text, x, y, width, color, callback)
     local button = Instance.new("TextButton")
-    button.Position = UDim2.fromOffset(x, 178)
-    button.Size = UDim2.fromOffset(82, 34)
-    button.BackgroundColor3 = Color3.fromRGB(55, 85, 130)
+    button.Name = name
+    button.Position = UDim2.fromOffset(x, y)
+    button.Size = UDim2.fromOffset(width, 30)
+    button.BackgroundColor3 = color
     button.Text = text
     button.TextColor3 = Color3.new(1, 1, 1)
-    button.TextSize = 12
+    button.TextSize = 11
     button.Font = Enum.Font.GothamBold
     button.Parent = panel
     corner(button, 7)
-    button.Activated:Connect(function()
-        adminAction:FireServer("SpawnBlock", nil, shape)
-    end)
+    button.Activated:Connect(callback)
+    return button
 end
 
-spawnButton("BLOCK", 12, "Block")
-spawnButton("BALL", 104, "Ball")
-spawnButton("CYLINDER", 196, "Cylinder")
+addLabel("FACTORY ADMIN  •  pozziBros_Az", 8)
+addLabel("Factory Cash amount", 34)
+local amount = addInput("CashAmount", "Enter any amount", 57)
+addButton("GiveCash", "GIVE", 12, 97, 138, Color3.fromRGB(40, 145, 85), function()
+    adminAction:FireServer("GiveCash", amount.Text)
+end)
+addButton("TakeCash", "TAKE", 160, 97, 138, Color3.fromRGB(165, 75, 65), function()
+    adminAction:FireServer("TakeCash", amount.Text)
+end)
 
-local close = Instance.new("TextButton")
-close.Position = UDim2.fromOffset(12, 220)
-close.Size = UDim2.new(1, -24, 0, 28)
-close.BackgroundColor3 = Color3.fromRGB(65, 70, 82)
-close.Text = "CLOSE"
-close.TextColor3 = Color3.new(1, 1, 1)
-close.TextSize = 12
-close.Font = Enum.Font.GothamBold
-close.Parent = panel
-corner(close, 7)
+addLabel("Spawn any product on your conveyor", 135)
+local productInput = addInput("ProductName", "Exact name, e.g. Glitch Cube", 158)
+addButton("SpawnProduct", "SPAWN PRODUCT", 12, 198, 286, Color3.fromRGB(55, 105, 175), function()
+    adminAction:FireServer("SpawnProduct", productInput.Text)
+end)
 
-give.Activated:Connect(function()
-    local value = tonumber(amount.Text)
-    if value and value > 0 then
-        adminAction:FireServer("GiveCash", value)
-        amount.Text = ""
-    end
+addButton("ResetAccount", "RESET MY ACCOUNT", 12, 238, 286, Color3.fromRGB(165, 65, 65), function()
+    adminAction:FireServer("ResetAccount")
+end)
+
+local paused = false
+local pauseButton = addButton("StopAllProduction", "STOP ALL FACTORIES", 12, 278, 286, Color3.fromRGB(190, 125, 35), function()
+    paused = not paused
+    adminAction:FireServer("StopAllProduction", paused)
+    pauseButton.Text = paused and "RESUME ALL FACTORIES" or "STOP ALL FACTORIES"
 end)
 
 toggle.Activated:Connect(function()
     panel.Visible = not panel.Visible
-end)
-close.Activated:Connect(function()
-    panel.Visible = false
 end)
 
 local function refreshAdmin()
