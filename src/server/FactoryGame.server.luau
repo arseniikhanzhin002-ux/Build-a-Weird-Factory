@@ -169,10 +169,10 @@ local function createExtraMachine(plotData)
     glow.Parent = machine
     decorativePart("ExtraMachineTop", Vector3.new(7.4, 0.4, 7.4),
         CFrame.new(machine.Position + Vector3.new(0, 3.7, 0)),
-        Color3.fromRGB(180, 245, 255), Enum.Material.Metal, plotData.model)
+        Color3.fromRGB(180, 245, 255), Enum.Material.Metal, machine)
     decorativePart("ExtraMachineDisplay", Vector3.new(0.25, 3, 4.5),
         CFrame.new(machine.Position + Vector3.new(3.6, 0.5, 0)),
-        Color3.fromRGB(55, 255, 230), Enum.Material.Neon, plotData.model)
+        Color3.fromRGB(55, 255, 230), Enum.Material.Neon, machine)
 end
 
 local function updateButton(plotData, id)
