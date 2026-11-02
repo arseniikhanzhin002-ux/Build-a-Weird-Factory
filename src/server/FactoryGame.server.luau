@@ -92,6 +92,70 @@ local function labelOnSign(parent, position)
     return text
 end
 
+-- Decorative 3D details: non-colliding so factory mechanics stay unchanged.
+local function decorativePart(name, size, cf, color, material, parent, shape)
+    local p = Instance.new("Part")
+    p.Name = name
+    p.Size = size
+    p.CFrame = cf
+    p.Color = color
+    p.Material = material
+    p.Shape = shape or Enum.PartType.Block
+    p.Anchored = true
+    p.CanCollide = false
+    p.CanTouch = false
+    p.CanQuery = false
+    p.Parent = parent
+    return p
+end
+
+local function decorateFactory(model, center)
+    local decoration = Instance.new("Model")
+    decoration.Name = "FactoryDecorations"
+    decoration.Parent = model
+    local steel = Color3.fromRGB(125, 145, 160)
+    local dark = Color3.fromRGB(45, 52, 63)
+    for _, z in ipairs({-3.8, 3.8}) do
+        decorativePart("ConveyorRail", Vector3.new(36, 0.9, 0.4),
+            CFrame.new(center + Vector3.new(0, 2.85, z)), steel, Enum.Material.Metal, decoration)
+        for _, x in ipairs({-14, 0, 14}) do
+            decorativePart("ConveyorLeg", Vector3.new(0.7, 1.8, 0.7),
+                CFrame.new(center + Vector3.new(x, 1.1, z)), dark, Enum.Material.Metal, decoration)
+        end
+    end
+    for x = -15, 15, 5 do
+        decorativePart("ConveyorRoller", Vector3.new(0.6, 6.3, 0.6),
+            CFrame.new(center + Vector3.new(x, 2.6, 0)) * CFrame.Angles(math.rad(90), 0, 0),
+            steel, Enum.Material.Metal, decoration, Enum.PartType.Cylinder)
+    end
+    for _, x in ipairs({-21, 21}) do
+        local base = center + Vector3.new(x, 0, 0)
+        decorativePart("MachineBase", Vector3.new(8, 0.4, 12),
+            CFrame.new(base + Vector3.new(0, 0.85, 0)), dark, Enum.Material.Metal, decoration)
+        decorativePart("MachineTop", Vector3.new(6.7, 0.4, 10.7),
+            CFrame.new(base + Vector3.new(0, 7.6, 0)), steel, Enum.Material.Metal, decoration)
+        decorativePart("MachineDisplay", Vector3.new(0.2, 2.5, 3.5),
+            CFrame.new(base + Vector3.new(3.15, 4.6, 0)),
+            Color3.fromRGB(50, 235, 240), Enum.Material.Neon, decoration)
+        for _, z in ipairs({-2.5, 2.5}) do
+            decorativePart("MachineIndicator", Vector3.new(0.75, 0.75, 0.75),
+                CFrame.new(base + Vector3.new(3.25, 6.2, z)),
+                x < 0 and Color3.fromRGB(70, 255, 120) or Color3.fromRGB(255, 90, 70),
+                Enum.Material.Neon, decoration, Enum.PartType.Ball)
+        end
+    end
+    for _, z in ipairs({-37, 37}) do
+        decorativePart("BorderLight", Vector3.new(74, 0.2, 0.5),
+            CFrame.new(center + Vector3.new(0, 0.75, z)),
+            Color3.fromRGB(255, 200, 65), Enum.Material.Neon, decoration)
+    end
+    for _, x in ipairs({-37, 37}) do
+        decorativePart("BorderLight", Vector3.new(0.5, 0.2, 74),
+            CFrame.new(center + Vector3.new(x, 0.75, 0)),
+            Color3.fromRGB(255, 200, 65), Enum.Material.Neon, decoration)
+    end
+end
+
 local function createExtraMachine(plotData)
     if plotData.model:FindFirstChild("ExtraMachine") then return end
     local machine = part("ExtraMachine", Vector3.new(7, 7, 7),
@@ -103,6 +167,12 @@ local function createExtraMachine(plotData)
     glow.Brightness = 2
     glow.Range = 12
     glow.Parent = machine
+    decorativePart("ExtraMachineTop", Vector3.new(7.4, 0.4, 7.4),
+        CFrame.new(machine.Position + Vector3.new(0, 3.7, 0)),
+        Color3.fromRGB(180, 245, 255), Enum.Material.Metal, plotData.model)
+    decorativePart("ExtraMachineDisplay", Vector3.new(0.25, 3, 4.5),
+        CFrame.new(machine.Position + Vector3.new(3.6, 0.5, 0)),
+        Color3.fromRGB(55, 255, 230), Enum.Material.Neon, plotData.model)
 end
 
 local function updateButton(plotData, id)
@@ -167,6 +237,7 @@ for i = 1, PLOT_COUNT do
         Color3.fromRGB(45, 220, 110), model)
     part("Collector", Vector3.new(6, 7, 10), center + Vector3.new(21, 4, 0),
         Color3.fromRGB(240, 70, 70), model)
+    decorateFactory(model, center)
     local boxes = Instance.new("Folder")
     boxes.Name = "Boxes"
     boxes.Parent = model
