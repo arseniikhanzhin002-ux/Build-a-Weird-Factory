@@ -8,7 +8,15 @@ local PLOT_COUNT = 6
 local BOX_REWARD = 5
 local BOX_INTERVAL = 2
 local TRAVEL_TIME = 6
-local store = DataStoreService:GetDataStore("WeirdFactoryProgress_v1")
+-- Initialize DataStore only when player progress is loaded/saved.
+-- This keeps map construction independent of DataStore availability.
+local store
+local function getProgressStore()
+    if not store then
+        store = DataStoreService:GetDataStore("WeirdFactoryProgress_v1")
+    end
+    return store
+end
 local ready = {}
 local saving = {}
 
@@ -236,7 +244,7 @@ end
 local function loadProgress(player)
     for attempt = 1, 3 do
         local ok, result = pcall(function()
-            return store:GetAsync("player_" .. player.UserId)
+            return getProgressStore():GetAsync("player_" .. player.UserId)
         end)
         if ok then
             if type(result) ~= "table" then result = {} end
@@ -273,7 +281,7 @@ local function saveProgress(player)
     local success = false
     for attempt = 1, 3 do
         local ok, err = pcall(function()
-            store:UpdateAsync("player_" .. player.UserId, function()
+            getProgressStore():UpdateAsync("player_" .. player.UserId, function()
                 return snapshot
             end)
         end)
