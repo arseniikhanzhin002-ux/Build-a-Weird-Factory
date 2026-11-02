@@ -345,8 +345,15 @@ local function onPlayerAdded(player)
     if player:FindFirstChild("leaderstats") then return end
     local progress = loadProgress(player)
     if not progress then
-        player:Kick("Factory save data unavailable. Rejoin to protect your progress.")
-        return
+        if game:GetService("RunService"):IsStudio() then
+            -- Studio-only temporary session: never write this fallback to DataStore.
+            warn("DataStore unavailable in Studio; running without saving progress for " .. player.Name)
+            progress = { cash = 0, upgrades = {} }
+            player:SetAttribute("TemporaryFactorySession", true)
+        else
+            player:Kick("Factory save data unavailable. Rejoin to protect your progress.")
+            return
+        end
     end
     if player.Parent ~= Players then return end
     local stats = Instance.new("Folder")
@@ -357,7 +364,7 @@ local function onPlayerAdded(player)
     cash.Value = progress.cash
     cash.Parent = stats
     assign(player, progress)
-    if playerPlots[player] then ready[player] = true end
+    if playerPlots[player] and progress ~= nil and not (game:GetService("RunService"):IsStudio() and player:GetAttribute("TemporaryFactorySession")) then ready[player] = true end
     player.CharacterAdded:Connect(function(character)
         teleport(player, character)
     end)
