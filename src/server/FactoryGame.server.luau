@@ -503,6 +503,24 @@ local function deliverBox(plotData, player, version, lane)
         -- LEGENDARY gets an additional gold explosion and a floating announcement.
         if product.machineLevel == 3 then
             local gold = Color3.fromRGB(255, 190, 45)
+
+            -- One-shot celebratory fanfare for LEGENDARY drops.
+            -- Creator Store audio ID referenced in Roblox's official audio tutorial.
+            local legendarySound = Instance.new("Sound")
+            legendarySound.Name = "LegendaryDropSound"
+            legendarySound.SoundId = "rbxassetid://1848183670"
+            legendarySound.Volume = 0.65
+            legendarySound.PlaybackSpeed = 1.15
+            legendarySound.RollOffMaxDistance = 90
+            legendarySound.Parent = box
+            legendarySound:Play()
+            legendarySound.Ended:Connect(function()
+                if legendarySound.Parent then legendarySound:Destroy() end
+            end)
+            task.delay(12, function()
+                if legendarySound.Parent then legendarySound:Destroy() end
+            end)
+
             local legendaryFlash = Instance.new("PointLight")
             legendaryFlash.Name = "LegendaryGoldFlash"
             legendaryFlash.Color = gold
