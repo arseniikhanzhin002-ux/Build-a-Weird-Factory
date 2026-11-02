@@ -21,6 +21,7 @@ end
 local ready = {}
 local saving = {}
 local saveProgress
+local productionLoop
 local ADMIN_USERNAME = "pozziBros_Az"
 local ADMIN_USER_ID
 local FIRST_GLITCH_REWARD = 2500
@@ -912,7 +913,7 @@ local function deliverBox(plotData, player, version, lane)
     box:Destroy()
 end
 
-local function productionLoop(player, plotData)
+productionLoop = function(player, plotData)
     local version = plotData.version
     task.spawn(function()
         while plotData.owner == player and plotData.version == version and player.Parent == Players and not productionPaused do
