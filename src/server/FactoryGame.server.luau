@@ -1,4 +1,4 @@
--- Build a Weird Factory: stages 1 and 2
+-- Build a Weird Factory: stages 1, 2 and 3
 -- Server-authoritative plots, production, cash, and upgrades.
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -14,6 +14,33 @@ local UPGRADES = {
     Income = { price = 200, title = "More Cash", color = Color3.fromRGB(170, 90, 255), offset = Vector3.new(23, 1.2, 14) },
 }
 local ORDER = { "Machine", "Speed", "Income" }
+
+-- Stage 3: unusual products with different rewards.
+-- Weights are relative spawn chances, not paid loot-box odds.
+local PRODUCTS = {
+    { name = "Weird Box", weight = 45, multiplier = 1, color = Color3.fromRGB(255, 190, 40), shape = Enum.PartType.Block },
+    { name = "Robot Banana", weight = 25, multiplier = 2, color = Color3.fromRGB(255, 235, 60), shape = Enum.PartType.Cylinder },
+    { name = "Living Fridge", weight = 15, multiplier = 3, color = Color3.fromRGB(125, 210, 255), shape = Enum.PartType.Block },
+    { name = "Flying Sofa", weight = 10, multiplier = 5, color = Color3.fromRGB(188, 98, 232), shape = Enum.PartType.Block },
+    { name = "Alien Orb", weight = 5, multiplier = 10, color = Color3.fromRGB(95, 255, 145), shape = Enum.PartType.Ball },
+}
+local productRandom = Random.new()
+
+local function rollProduct()
+    local total = 0
+    for _, product in ipairs(PRODUCTS) do
+        total += product.weight
+    end
+    local roll = productRandom:NextNumber(0, total)
+    local running = 0
+    for _, product in ipairs(PRODUCTS) do
+        running += product.weight
+        if roll <= running then
+            return product
+        end
+    end
+    return PRODUCTS[#PRODUCTS]
+end
 
 local previous = workspace:FindFirstChild("FactoryPlots")
 if previous then previous:Destroy() end
@@ -147,10 +174,27 @@ end
 local function deliverBox(plotData, player, version, lane)
     if plotData.owner ~= player or plotData.version ~= version then return end
     local zOffset = lane == 2 and -2 or 2
-    local box = part("ProductBox", Vector3.new(3, 3, 3),
+    local product = rollProduct()
+    local box = part(product.name, Vector3.new(3, 3, 3),
         plotData.center + Vector3.new(-16, 4, zOffset),
-        Color3.fromRGB(255, 190, 40), plotData.boxes)
+        product.color, plotData.boxes)
+    box.Shape = product.shape
     box.CanCollide = false
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ProductLabel"
+    billboard.Size = UDim2.fromOffset(150, 38)
+    billboard.StudsOffsetWorldSpace = Vector3.new(0, 2.7, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = box
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.fromScale(1, 1)
+    title.BackgroundTransparency = 1
+    title.TextScaled = true
+    title.TextStrokeTransparency = 0.4
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.Text = product.name .. " x" .. product.multiplier
+    title.Parent = billboard
 
     local tween = TweenService:Create(box,
         TweenInfo.new(TRAVEL_TIME, Enum.EasingStyle.Linear),
@@ -165,7 +209,7 @@ local function deliverBox(plotData, player, version, lane)
         local stats = player:FindFirstChild("leaderstats")
         local cash = stats and stats:FindFirstChild("Factory Cash")
         if cash then
-            cash.Value += plotData.upgrades.Income and 10 or BOX_REWARD
+            cash.Value += (plotData.upgrades.Income and 10 or BOX_REWARD) * product.multiplier
         end
     end
     box:Destroy()
@@ -247,4 +291,4 @@ Players.PlayerRemoving:Connect(release)
 for _, player in ipairs(Players:GetPlayers()) do
     task.spawn(onPlayerAdded, player)
 end
-print("Build a Weird Factory: stages 1-2 ready")
+print("Build a Weird Factory: stages 1-3 ready")
