@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local DataStoreService = game:GetService("DataStoreService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PLOT_COUNT = 6
 local BOX_REWARD = 5
@@ -44,6 +45,24 @@ local PRODUCTS = {
     { name = "Alien Orb", weight = 5, multiplier = 10, color = Color3.fromRGB(95, 255, 145), shape = Enum.PartType.Ball },
 }
 local productRandom = Random.new()
+local ALL_PRODUCTS = {}
+for _, product in ipairs(PRODUCTS) do table.insert(ALL_PRODUCTS, product.name) end
+for _, level in ipairs(PRODUCTION_LEVELS) do table.insert(ALL_PRODUCTS, level.product.name) end
+local VALID_PRODUCT_NAMES = {}
+for _, name in ipairs(ALL_PRODUCTS) do VALID_PRODUCT_NAMES[name] = true end
+
+local remotes = ReplicatedStorage:FindFirstChild("FactoryRemotes")
+if not remotes then
+    remotes = Instance.new("Folder")
+    remotes.Name = "FactoryRemotes"
+    remotes.Parent = ReplicatedStorage
+end
+local getCollection = remotes:FindFirstChild("GetCollection") or Instance.new("RemoteFunction")
+getCollection.Name = "GetCollection"
+getCollection.Parent = remotes
+local collectionUpdated = remotes:FindFirstChild("CollectionUpdated") or Instance.new("RemoteEvent")
+collectionUpdated.Name = "CollectionUpdated"
+collectionUpdated.Parent = remotes
 
 local function rollProduct(plotData)
     -- Every eighth box is a signature item from an unlocked production machine.
@@ -365,6 +384,7 @@ for i = 1, PLOT_COUNT do
         upgrades = { Machine = false, Speed = false, Income = false },
         productionLevel = 0,
         machineProductCount = 0,
+        collection = {},
         productionButton = nil,
         buttons = {},
     }
@@ -414,6 +434,10 @@ local function deliverBox(plotData, player, version, lane)
     if plotData.owner ~= player or plotData.version ~= version then return end
     local zOffset = lane == 2 and -2 or 2
     local product = rollProduct(plotData)
+    -- Collection counts an item when it is produced, even if it has not sold yet.
+    plotData.collection = plotData.collection or {}
+    plotData.collection[product.name] = (plotData.collection[product.name] or 0) + 1
+    collectionUpdated:FireClient(player, product.name, plotData.collection[product.name])
     local box = part(product.name, Vector3.new(3, 3, 3),
         plotData.center + Vector3.new(-16, 4, zOffset),
         product.color, plotData.boxes)
@@ -508,6 +532,12 @@ local function productionLoop(player, plotData)
     end)
 end
 
+getCollection.OnServerInvoke = function(player)
+    local plotData = playerPlots[player]
+    if not plotData then return {} end
+    return table.clone(plotData.collection or {})
+end
+
 local function loadProgress(player)
     for attempt = 1, 3 do
         local ok, result = pcall(function()
@@ -519,8 +549,16 @@ local function loadProgress(player)
                 cash = math.clamp(math.floor(tonumber(result.cash) or 0), 0, 2000000000),
                 upgrades = type(result.upgrades) == "table" and result.upgrades or {},
                 productionLevel = math.clamp(math.floor(tonumber(result.productionLevel) or 0), 0, #PRODUCTION_LEVELS),
-                machineProductCount = math.clamp(math.floor(tonumber(result.machineProductCount) or 0), 0, 2000000000)
+                machineProductCount = math.clamp(math.floor(tonumber(result.machineProductCount) or 0), 0, 2000000000),
+                collection = {}
             }
+            if type(result.collection) == "table" then
+                for name, count in pairs(result.collection) do
+                    if VALID_PRODUCT_NAMES[name] then
+                        progress.collection[name] = math.clamp(math.floor(tonumber(count) or 0), 0, 2000000000)
+                    end
+                end
+            end
             print(("[FactorySave] Loaded %s: cash=$%d, production=%d"):format(
                 player.Name, progress.cash, progress.productionLevel))
             return progress
@@ -550,7 +588,8 @@ saveProgress = function(player)
             Income = plot.upgrades.Income,
         },
         productionLevel = plot.productionLevel or 0,
-        machineProductCount = plot.machineProductCount or 0
+        machineProductCount = plot.machineProductCount or 0,
+        collection = table.clone(plot.collection or {})
     }
     local success = false
     for attempt = 1, 3 do
@@ -597,6 +636,7 @@ local function assign(player, progress)
             if plotData.upgrades.Machine then createExtraMachine(plotData) end
             plotData.productionLevel = progress.productionLevel or 0
             plotData.machineProductCount = progress.machineProductCount or 0
+            plotData.collection = progress.collection or {}
             player:SetAttribute("FactoryProductionLevel", plotData.productionLevel)
             for level = 1, plotData.productionLevel do
                 createProductionMachine(plotData, level)
@@ -625,6 +665,7 @@ local function release(player)
     end
     plotData.productionLevel = 0
     plotData.machineProductCount = 0
+    plotData.collection = {}
     player:SetAttribute("FactoryProductionLevel", 0)
     local productionMachines = plotData.model:FindFirstChild("ProductionMachines")
     if productionMachines then productionMachines:Destroy() end
