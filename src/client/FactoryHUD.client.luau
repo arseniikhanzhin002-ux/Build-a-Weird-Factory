@@ -3,13 +3,20 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
+-- The server provides a fallback panel if Rojo has not synced this script.
+-- Avoid displaying two HUDs when both paths are available.
+local playerGui = player:WaitForChild("PlayerGui")
+if playerGui:FindFirstChild("FactoryHUD") then
+    return
+end
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "FactoryHUD"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = false
 gui.DisplayOrder = 100
 gui.Enabled = true
-gui.Parent = player:WaitForChild("PlayerGui")
+gui.Parent = playerGui
 
 local function corner(parent, radius)
     local c = Instance.new("UICorner")
