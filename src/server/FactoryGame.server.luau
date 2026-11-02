@@ -19,6 +19,7 @@ local function getProgressStore()
 end
 local ready = {}
 local saving = {}
+local saveProgress
 
 
 local UPGRADES = {
@@ -262,6 +263,9 @@ local function buyProductionLevel(player, plotData)
     player:SetAttribute("FactoryProductionLevel", plotData.productionLevel)
     createProductionMachine(plotData, plotData.productionLevel)
     updateProductionButton(plotData)
+    if ready[player] and saveProgress then
+        task.spawn(saveProgress, player)
+    end
 end
 
 local function updateButton(plotData, id)
@@ -286,6 +290,9 @@ local function buyUpgrade(player, plotData, id)
     player:SetAttribute("FactoryUpgrade_" .. id, true)
     if id == "Machine" then createExtraMachine(plotData) end
     updateButton(plotData, id)
+    if ready[player] and saveProgress then
+        task.spawn(saveProgress, player)
+    end
 end
 
 local function buildShop(plotData)
@@ -434,9 +441,32 @@ local function deliverBox(plotData, player, version, lane)
     title.TextTruncate = Enum.TextTruncate.AtEnd
     title.Font = Enum.Font.GothamBold
     title.TextStrokeTransparency = 0.65
-    title.TextColor3 = Color3.new(1, 1, 1)
+    local rarityColor
+    local rarityName
+    if product.multiplier >= 10 then
+        rarityName = "LEGENDARY"
+        rarityColor = Color3.fromRGB(255, 185, 55)
+    elseif product.multiplier >= 7 then
+        rarityName = "EPIC"
+        rarityColor = Color3.fromRGB(195, 105, 255)
+    elseif product.multiplier >= 4 then
+        rarityName = "RARE"
+        rarityColor = Color3.fromRGB(75, 175, 255)
+    elseif product.multiplier >= 2 then
+        rarityName = "UNCOMMON"
+        rarityColor = Color3.fromRGB(100, 230, 145)
+    else
+        rarityName = "COMMON"
+        rarityColor = Color3.fromRGB(225, 232, 242)
+    end
+    title.TextColor3 = rarityColor
     title.Text = product.name .. " x" .. product.multiplier
     title.Parent = billboard
+    local rarityStroke = Instance.new("UIStroke")
+    rarityStroke.Color = rarityColor
+    rarityStroke.Thickness = 1
+    rarityStroke.Transparency = 0.2
+    rarityStroke.Parent = title
 
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 5)
@@ -488,7 +518,8 @@ local function loadProgress(player)
             return {
                 cash = math.clamp(math.floor(tonumber(result.cash) or 0), 0, 2000000000),
                 upgrades = type(result.upgrades) == "table" and result.upgrades or {},
-                productionLevel = math.clamp(math.floor(tonumber(result.productionLevel) or 0), 0, #PRODUCTION_LEVELS)
+                productionLevel = math.clamp(math.floor(tonumber(result.productionLevel) or 0), 0, #PRODUCTION_LEVELS),
+                machineProductCount = math.clamp(math.floor(tonumber(result.machineProductCount) or 0), 0, 2000000000)
             }
         end
         warn("Progress load failed: " .. tostring(result))
@@ -497,7 +528,7 @@ local function loadProgress(player)
     return nil
 end
 
-local function saveProgress(player)
+saveProgress = function(player)
     if not ready[player] then return true end
     while saving[player] do task.wait(0.1) end
     saving[player] = true
@@ -515,7 +546,8 @@ local function saveProgress(player)
             Speed = plot.upgrades.Speed,
             Income = plot.upgrades.Income,
         },
-        productionLevel = plot.productionLevel or 0
+        productionLevel = plot.productionLevel or 0,
+        machineProductCount = plot.machineProductCount or 0
     }
     local success = false
     for attempt = 1, 3 do
@@ -557,6 +589,7 @@ local function assign(player, progress)
             end
             if plotData.upgrades.Machine then createExtraMachine(plotData) end
             plotData.productionLevel = progress.productionLevel or 0
+            plotData.machineProductCount = progress.machineProductCount or 0
             player:SetAttribute("FactoryProductionLevel", plotData.productionLevel)
             for level = 1, plotData.productionLevel do
                 createProductionMachine(plotData, level)
@@ -713,7 +746,7 @@ end)
 
 task.spawn(function()
     while true do
-        task.wait(60)
+        task.wait(30)
         for player in pairs(ready) do
             task.spawn(saveProgress, player)
         end
