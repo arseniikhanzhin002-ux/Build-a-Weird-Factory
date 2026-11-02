@@ -30,9 +30,9 @@ local UPGRADES = {
 }
 local ORDER = { "Machine", "Speed", "Income" }
 local PRODUCTION_LEVELS = {
-    { price = 500, title = "Assembly Machine Mk II", color = Color3.fromRGB(55, 205, 255), product = { name = "Clockwork Duck", multiplier = 4, color = Color3.fromRGB(65, 220, 255), shape = Enum.PartType.Ball } },
-    { price = 1500, title = "Turbo Press Mk III", color = Color3.fromRGB(255, 135, 45), product = { name = "Plasma Donut", multiplier = 7, color = Color3.fromRGB(255, 90, 185), shape = Enum.PartType.Cylinder } },
-    { price = 5000, title = "Quantum Assembler Mk IV", color = Color3.fromRGB(190, 95, 255), product = { name = "Glitch Cube", multiplier = 12, color = Color3.fromRGB(150, 100, 255), shape = Enum.PartType.Block } },
+    { price = 500, title = "Assembly Machine Mk II", color = Color3.fromRGB(55, 205, 255), dropChance = 4, rarity = "RARE", product = { name = "Clockwork Duck", multiplier = 4, color = Color3.fromRGB(65, 220, 255), shape = Enum.PartType.Ball } },
+    { price = 1500, title = "Turbo Press Mk III", color = Color3.fromRGB(255, 135, 45), dropChance = 2.5, rarity = "EPIC", product = { name = "Plasma Donut", multiplier = 7, color = Color3.fromRGB(255, 90, 185), shape = Enum.PartType.Cylinder } },
+    { price = 5000, title = "Quantum Assembler Mk IV", color = Color3.fromRGB(190, 95, 255), dropChance = 1, rarity = "LEGENDARY", product = { name = "Glitch Cube", multiplier = 12, color = Color3.fromRGB(150, 100, 255), shape = Enum.PartType.Block } },
 }
 
 -- Stage 3: unusual products with different rewards.
@@ -65,15 +65,27 @@ collectionUpdated.Name = "CollectionUpdated"
 collectionUpdated.Parent = remotes
 
 local function rollProduct(plotData)
-    -- Every eighth box is a signature item from an unlocked production machine.
-    -- Unlocked machine products rotate in order when multiple levels are owned.
+    -- Each unlocked machine adds an independent chance to produce its signature item.
+    -- Chances are per produced box; base products retain their original weighted roll.
     local level = plotData.productionLevel or 0
-    if level > 0 then
-        plotData.machineProductCount = (plotData.machineProductCount or 0) + 1
-        if plotData.machineProductCount % 8 == 0 then
-            local unlockedIndex = (math.floor(plotData.machineProductCount / 8) - 1) % level + 1
-            local signature = PRODUCTION_LEVELS[unlockedIndex].product
-            return { name = signature.name, weight = 0, multiplier = signature.multiplier, color = signature.color, shape = signature.shape, machineLevel = unlockedIndex }
+    plotData.machineProductCount = (plotData.machineProductCount or 0) + 1
+    local chanceRoll = productRandom:NextNumber(0, 100)
+    local accumulatedChance = 0
+    for machineLevel = 1, level do
+        local machineConfig = PRODUCTION_LEVELS[machineLevel]
+        accumulatedChance += machineConfig.dropChance
+        if chanceRoll <= accumulatedChance then
+            local signature = machineConfig.product
+            return {
+                name = signature.name,
+                weight = 0,
+                multiplier = signature.multiplier,
+                color = signature.color,
+                shape = signature.shape,
+                machineLevel = machineLevel,
+                rarity = machineConfig.rarity,
+                dropChance = machineConfig.dropChance,
+            }
         end
     end
     local total = 0
