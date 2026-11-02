@@ -11,10 +11,14 @@ local BOX_INTERVAL = 2
 local TRAVEL_TIME = 6
 -- Initialize DataStore only when player progress is loaded/saved.
 -- This keeps map construction independent of DataStore availability.
+-- Bump the store namespace to give every player a clean starting profile.
+-- The previous namespace remains untouched for rollback, while all new joins
+-- use this fresh store and continue saving normally.
+local PROGRESS_STORE_NAME = "WeirdFactoryProgress_v2_WeirdReset"
 local store
 local function getProgressStore()
     if not store then
-        store = DataStoreService:GetDataStore("WeirdFactoryProgress_v1")
+        store = DataStoreService:GetDataStore(PROGRESS_STORE_NAME)
     end
     return store
 end
@@ -525,10 +529,15 @@ local function decorateFactory(model, center)
             CFrame.new(base + Vector3.new(3.15, 4.6, 0)),
             Color3.fromRGB(50, 235, 240), Enum.Material.Neon, decoration)
         for _, z in ipairs({-2.5, 2.5}) do
-            decorativePart("MachineIndicator", Vector3.new(0.75, 0.75, 0.75),
+            local indicator = decorativePart("MachineIndicator", Vector3.new(0.75, 0.75, 0.75),
                 CFrame.new(base + Vector3.new(3.25, 6.2, z)),
                 x < 0 and Color3.fromRGB(70, 255, 120) or Color3.fromRGB(255, 90, 70),
                 Enum.Material.Neon, decoration, Enum.PartType.Ball)
+            local indicatorLight = Instance.new("PointLight")
+            indicatorLight.Color = indicator.Color
+            indicatorLight.Brightness = 0.65
+            indicatorLight.Range = 6
+            indicatorLight.Parent = indicator
         end
     end
     for _, z in ipairs({-37, 37}) do
@@ -657,6 +666,48 @@ local function decorateFactory(model, center)
         antennaLight.Brightness = 0.8
         antennaLight.Range = 8
         antennaLight.Parent = antennaTip
+    end
+
+    -- Give every plot a consistent Weird visual language across its machines,
+    -- conveyor, pipes and perimeter lighting. These parts are cosmetic only.
+    local warningYellow = Color3.fromRGB(255, 205, 45)
+    for _, x in ipairs({-21, 21}) do
+        for _, y in ipairs({2.2, 6.9}) do
+            decorativePart("MachineWarningStripe", Vector3.new(6.4, 0.18, 0.45),
+                CFrame.new(center + Vector3.new(x, y, 3.55)),
+                warningYellow, Enum.Material.Neon, decoration)
+        end
+    end
+
+    for _, x in ipairs({-15, -5, 5, 15}) do
+        local arrow = decorativePart("ConveyorDirectionArrow", Vector3.new(4.5, 0.16, 1.4),
+            CFrame.new(center + Vector3.new(x, 2.62, 0)),
+            x % 2 == 0 and hotPink or toxicGreen, Enum.Material.Neon, decoration)
+        arrow.Transparency = 0.08
+    end
+
+    for _, x in ipairs({-27, 27}) do
+        local valve = decorativePart("PipeValve", Vector3.new(2.4, 0.35, 2.4),
+            CFrame.new(center + Vector3.new(x, 12.5, -21)) * CFrame.Angles(math.rad(90), 0, 0),
+            warningYellow, Enum.Material.Metal, decoration, Enum.PartType.Cylinder)
+        decorativePart("PipeValveHandle", Vector3.new(3.2, 0.22, 0.22),
+            valve.CFrame * CFrame.Angles(0, 0, math.rad(35)),
+            hotPink, Enum.Material.Neon, decoration)
+    end
+
+    for _, position in ipairs({
+        Vector3.new(-34, 8, 31), Vector3.new(34, 8, 31),
+        Vector3.new(-34, 8, -4), Vector3.new(34, 8, -4),
+    }) do
+        local lamp = decorativePart("FactoryGlowLamp", Vector3.new(1.1, 1.1, 1.1),
+            CFrame.new(center + position),
+            position.X < 0 and toxicGreen or hotPink,
+            Enum.Material.Neon, decoration, Enum.PartType.Ball)
+        local lampLight = Instance.new("PointLight")
+        lampLight.Color = lamp.Color
+        lampLight.Brightness = 1.4
+        lampLight.Range = 12
+        lampLight.Parent = lamp
     end
 
     -- High-visibility centerpiece: large, unmistakable Weird machinery on every plot.
