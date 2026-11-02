@@ -468,9 +468,12 @@ local function part(name, size, position, color, parent)
 end
 
 local function labelOnSign(parent, position)
-    local sign = part("Sign", Vector3.new(18, 5, 1), position, Color3.fromRGB(35, 35, 50), parent)
+    local sign = part("Sign", Vector3.new(15, 3.4, 0.8), position + Vector3.new(0, 1.2, 0),
+        Color3.fromRGB(28, 34, 48), parent)
+    sign.Material = Enum.Material.Metal
     local gui = Instance.new("SurfaceGui")
     gui.Face = Enum.NormalId.Front
+    gui.LightInfluence = 0
     gui.Parent = sign
     local text = Instance.new("TextLabel")
     text.Name = "OwnerText"
@@ -478,6 +481,9 @@ local function labelOnSign(parent, position)
     text.BackgroundTransparency = 1
     text.TextScaled = true
     text.TextColor3 = Color3.new(1, 1, 1)
+    text.TextStrokeColor3 = Color3.fromRGB(10, 15, 25)
+    text.TextStrokeTransparency = 0.35
+    text.Font = Enum.Font.GothamBlack
     text.Text = "FREE FACTORY"
     text.Parent = gui
     return text
@@ -589,15 +595,16 @@ local function decorateFactory(model, center)
             indicatorLight.Parent = indicator
         end
     end
+    local borderColor = Color3.fromRGB(95, 220, 255)
     for _, z in ipairs({-37, 37}) do
         decorativePart("BorderLight", Vector3.new(74, 0.2, 0.5),
             CFrame.new(center + Vector3.new(0, 0.75, z)),
-            Color3.fromRGB(255, 200, 65), Enum.Material.Neon, decoration)
+            borderColor, Enum.Material.Neon, decoration)
     end
     for _, x in ipairs({-37, 37}) do
         decorativePart("BorderLight", Vector3.new(0.5, 0.2, 74),
             CFrame.new(center + Vector3.new(x, 0.75, 0)),
-            Color3.fromRGB(255, 200, 65), Enum.Material.Neon, decoration)
+            borderColor, Enum.Material.Neon, decoration)
     end
     -- Weird factory theme: mismatched pipes, goofy eyes, warning lights and bubbling tanks.
     local weirdPurple = Color3.fromRGB(165, 75, 255)
@@ -945,7 +952,10 @@ local function buildShop(plotData)
         local config = UPGRADES[id]
         local button = part(id .. "Button", Vector3.new(12, 1, 10),
             plotData.center + config.offset, config.color, shop)
-        button.Material = Enum.Material.Neon
+        -- Metal bodies keep the color readable without flooding the whole base
+        -- with bloom; the surrounding Weird decorations provide the glow.
+        button.Material = Enum.Material.Metal
+        button.Reflectance = 0.12
         local prompt = Instance.new("ProximityPrompt")
         prompt.Name = "BuyPrompt"
         prompt.ObjectText = config.title
@@ -962,7 +972,8 @@ local function buildShop(plotData)
 
     local productionButton = part("ProductionLevelButton", Vector3.new(14, 1, 9),
         plotData.center + Vector3.new(0, 1.2, 26), Color3.fromRGB(55, 205, 255), shop)
-    productionButton.Material = Enum.Material.Neon
+    productionButton.Material = Enum.Material.Metal
+    productionButton.Reflectance = 0.12
     local productionPrompt = Instance.new("ProximityPrompt")
     productionPrompt.Name = "BuyProductionLevel"
     productionPrompt.ObjectText = "Production Level 1"
