@@ -506,6 +506,55 @@ local function decorateFactory(model, center)
     decoration.Parent = model
     local steel = Color3.fromRGB(125, 145, 160)
     local dark = Color3.fromRGB(45, 52, 63)
+    local deck = decorativePart("FactoryDeck", Vector3.new(74, 0.18, 74),
+        CFrame.new(center + Vector3.new(0, 0.68, 0)),
+        Color3.fromRGB(38, 48, 62), Enum.Material.Metal, decoration)
+    deck.Transparency = 0.08
+
+    -- Layered floor panels make each plot read as a designed base instead of a
+    -- single flat slab, while leaving every interactive part above it intact.
+    for _, x in ipairs({-30, -15, 0, 15, 30}) do
+        decorativePart("DeckGridLine", Vector3.new(0.12, 0.05, 70),
+            CFrame.new(center + Vector3.new(x, 0.8, 0)),
+            Color3.fromRGB(70, 84, 103), Enum.Material.Metal, decoration)
+    end
+    for _, z in ipairs({-30, -15, 0, 15, 30}) do
+        decorativePart("DeckGridLine", Vector3.new(70, 0.05, 0.12),
+            CFrame.new(center + Vector3.new(0, 0.8, z)),
+            Color3.fromRGB(70, 84, 103), Enum.Material.Metal, decoration)
+    end
+    for _, x in ipairs({-21, 21}) do
+        decorativePart("MachineBayPlate", Vector3.new(14, 0.12, 16),
+            CFrame.new(center + Vector3.new(x, 0.83, 0)),
+            Color3.fromRGB(28, 34, 46), Enum.Material.Metal, decoration)
+        decorativePart("MachineBayTrim", Vector3.new(14, 0.08, 0.35),
+            CFrame.new(center + Vector3.new(x, 0.92, 7.6)),
+            x < 0 and Color3.fromRGB(60, 245, 160) or Color3.fromRGB(255, 90, 125),
+            Enum.Material.Neon, decoration)
+    end
+    decorativePart("FactoryWalkway", Vector3.new(6, 0.1, 29),
+        CFrame.new(center + Vector3.new(0, 0.86, 17)),
+        Color3.fromRGB(55, 66, 82), Enum.Material.Metal, decoration)
+    for _, x in ipairs({-23, 0, 23}) do
+        decorativePart("UpgradeBayPlate", Vector3.new(14, 0.1, 12),
+            CFrame.new(center + Vector3.new(x, 0.84, 14)),
+            Color3.fromRGB(31, 39, 53), Enum.Material.Metal, decoration)
+    end
+
+    -- A clean entrance frame gives every factory a strong silhouette from above.
+    for _, x in ipairs({-34, 34}) do
+        decorativePart("EntrancePillar", Vector3.new(2.2, 8, 2.2),
+            CFrame.new(center + Vector3.new(x, 4.4, 34)),
+            dark, Enum.Material.Metal, decoration)
+        decorativePart("EntrancePillarGlow", Vector3.new(0.35, 6.5, 0.35),
+            CFrame.new(center + Vector3.new(x, 4.4, 32.8)),
+            x < 0 and Color3.fromRGB(60, 245, 160) or Color3.fromRGB(255, 75, 180),
+            Enum.Material.Neon, decoration)
+    end
+    decorativePart("EntranceHeader", Vector3.new(70, 1.1, 2.2),
+        CFrame.new(center + Vector3.new(0, 8.2, 34)),
+        steel, Enum.Material.Metal, decoration)
+
     for _, z in ipairs({-3.8, 3.8}) do
         decorativePart("ConveyorRail", Vector3.new(36, 0.9, 0.4),
             CFrame.new(center + Vector3.new(0, 2.85, z)), steel, Enum.Material.Metal, decoration)
