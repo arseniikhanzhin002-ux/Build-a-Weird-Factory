@@ -24,6 +24,11 @@ local saveProgress
 local ADMIN_USERNAME = "pozziBros_Az"
 local ADMIN_USER_ID
 local FIRST_GLITCH_REWARD = 2500
+local DAILY_QUESTS = {
+    { id = "produce", title = "Factory Starter", description = "Produce 50 items", target = 50, reward = 500 },
+    { id = "sell", title = "Make It Rain", description = "Earn $500 from sales", target = 500, reward = 750 },
+    { id = "rare", title = "Oddity Hunter", description = "Produce 3 unique items", target = 3, reward = 1000 },
+}
 local playerPlots = {}
 
 
@@ -73,6 +78,95 @@ rewardNotice.Parent = remotes
 local adminAction = remotes:FindFirstChild("AdminAction") or Instance.new("RemoteEvent")
 adminAction.Name = "AdminAction"
 adminAction.Parent = remotes
+local teleportToFactory = remotes:FindFirstChild("TeleportToFactory") or Instance.new("RemoteEvent")
+teleportToFactory.Name = "TeleportToFactory"
+teleportToFactory.Parent = remotes
+local getDailyQuests = remotes:FindFirstChild("GetDailyQuests") or Instance.new("RemoteFunction")
+getDailyQuests.Name = "GetDailyQuests"
+getDailyQuests.Parent = remotes
+local dailyQuestsUpdated = remotes:FindFirstChild("DailyQuestsUpdated") or Instance.new("RemoteEvent")
+dailyQuestsUpdated.Name = "DailyQuestsUpdated"
+dailyQuestsUpdated.Parent = remotes
+local claimDailyQuest = remotes:FindFirstChild("ClaimDailyQuest") or Instance.new("RemoteEvent")
+claimDailyQuest.Name = "ClaimDailyQuest"
+claimDailyQuest.Parent = remotes
+
+local function currentQuestDay()
+    return os.date("!%Y-%m-%d")
+end
+
+local function freshDailyQuests()
+    local data = { day = currentQuestDay(), progress = {}, claimed = {} }
+    for _, quest in ipairs(DAILY_QUESTS) do data.progress[quest.id] = 0 end
+    return data
+end
+
+local function normalizeDailyQuests(data)
+    if type(data) ~= "table" or data.day ~= currentQuestDay() then return freshDailyQuests() end
+    local result = { day = data.day, progress = {}, claimed = {} }
+    for _, quest in ipairs(DAILY_QUESTS) do
+        local raw = type(data.progress) == "table" and data.progress[quest.id] or 0
+        result.progress[quest.id] = math.clamp(math.floor(tonumber(raw) or 0), 0, quest.target)
+        result.claimed[quest.id] = type(data.claimed) == "table" and data.claimed[quest.id] == true or false
+    end
+    return result
+end
+
+local function sendDailyQuests(player)
+    local plot = playerPlots[player]
+    if plot then dailyQuestsUpdated:FireClient(player, plot.dailyQuests or freshDailyQuests()) end
+end
+
+local function addQuestProgress(player, questId, amount)
+    local plot = playerPlots[player]
+    if not plot then return end
+    plot.dailyQuests = normalizeDailyQuests(plot.dailyQuests)
+    for _, quest in ipairs(DAILY_QUESTS) do
+        if quest.id == questId then
+            local old = plot.dailyQuests.progress[questId] or 0
+            plot.dailyQuests.progress[questId] = math.clamp(old + math.max(0, math.floor(amount)), 0, quest.target)
+            if old ~= plot.dailyQuests.progress[questId] then
+                sendDailyQuests(player)
+                if ready[player] and saveProgress then task.spawn(saveProgress, player) end
+            end
+            return
+        end
+    end
+end
+
+getDailyQuests.OnServerInvoke = function(player)
+    local plot = playerPlots[player]
+    if not plot then return freshDailyQuests() end
+    plot.dailyQuests = normalizeDailyQuests(plot.dailyQuests)
+    return plot.dailyQuests
+end
+
+claimDailyQuest.OnServerEvent:Connect(function(player, questId)
+    local plot = playerPlots[player]
+    if not plot then return end
+    plot.dailyQuests = normalizeDailyQuests(plot.dailyQuests)
+    for _, quest in ipairs(DAILY_QUESTS) do
+        if quest.id == questId then
+            if plot.dailyQuests.claimed[questId] or (plot.dailyQuests.progress[questId] or 0) < quest.target then return end
+            local stats = player:FindFirstChild("leaderstats")
+            local cash = stats and stats:FindFirstChild("Factory Cash")
+            if not cash then return end
+            plot.dailyQuests.claimed[questId] = true
+            cash.Value = math.clamp(cash.Value + quest.reward, 0, 2000000000)
+            sendDailyQuests(player)
+            if ready[player] and saveProgress then task.spawn(saveProgress, player) end
+            return
+        end
+    end
+end)
+
+teleportToFactory.OnServerEvent:Connect(function(player, index)
+    if typeof(index) ~= "number" or index % 1 ~= 0 or index < 1 or index > PLOT_COUNT then return end
+    local destination = plots[index]
+    local character = player.Character
+    if not destination or not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    character:PivotTo(CFrame.new(destination.center + Vector3.new(0, 6, 22)))
+end)
 
 task.spawn(function()
     local ok, userId = pcall(function()
