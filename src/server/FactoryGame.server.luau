@@ -21,6 +21,9 @@ end
 local ready = {}
 local saving = {}
 local saveProgress
+local ADMIN_USERNAME = "pozziBros_Az"
+local ADMIN_USER_ID
+local FIRST_GLITCH_REWARD = 2500
 
 
 local UPGRADES = {
@@ -63,6 +66,74 @@ getCollection.Parent = remotes
 local collectionUpdated = remotes:FindFirstChild("CollectionUpdated") or Instance.new("RemoteEvent")
 collectionUpdated.Name = "CollectionUpdated"
 collectionUpdated.Parent = remotes
+local rewardNotice = remotes:FindFirstChild("RewardNotice") or Instance.new("RemoteEvent")
+rewardNotice.Name = "RewardNotice"
+rewardNotice.Parent = remotes
+local adminAction = remotes:FindFirstChild("AdminAction") or Instance.new("RemoteEvent")
+adminAction.Name = "AdminAction"
+adminAction.Parent = remotes
+
+task.spawn(function()
+    local ok, userId = pcall(function()
+        return Players:GetUserIdFromNameAsync(ADMIN_USERNAME)
+    end)
+    if ok then
+        ADMIN_USER_ID = userId
+        for _, player in ipairs(Players:GetPlayers()) do
+            player:SetAttribute("IsFactoryAdmin", player.UserId == ADMIN_USER_ID)
+        end
+        print("[FactoryAdmin] Authorized admin UserId resolved")
+    else
+        warn("[FactoryAdmin] Could not resolve admin username; admin panel remains disabled")
+    end
+end)
+
+local function isFactoryAdmin(player)
+    return ADMIN_USER_ID ~= nil and player.UserId == ADMIN_USER_ID
+end
+
+adminAction.OnServerEvent:Connect(function(player, action, value, blockType)
+    if not isFactoryAdmin(player) then
+        warn("[FactoryAdmin] Rejected unauthorized admin action from " .. player.Name)
+        return
+    end
+    if action == "GiveCash" then
+        local amount = tonumber(value)
+        if not amount or amount ~= amount then return end
+        amount = math.clamp(math.floor(amount), 1, 1000000000)
+        local stats = player:FindFirstChild("leaderstats")
+        local cash = stats and stats:FindFirstChild("Factory Cash")
+        if not cash then return end
+        cash.Value = math.clamp(cash.Value + amount, 0, 2000000000)
+        if ready[player] and saveProgress then task.spawn(saveProgress, player) end
+    elseif action == "SpawnBlock" then
+        local plotData = playerPlots[player]
+        if not plotData then return end
+        local allowedShapes = {
+            Block = Enum.PartType.Block,
+            Ball = Enum.PartType.Ball,
+            Cylinder = Enum.PartType.Cylinder,
+        }
+        local shape = allowedShapes[blockType]
+        if not shape then return end
+        local spawnFolder = plotData.model:FindFirstChild("AdminSpawned")
+        if not spawnFolder then
+            spawnFolder = Instance.new("Folder")
+            spawnFolder.Name = "AdminSpawned"
+            spawnFolder.Parent = plotData.model
+        end
+        local spawned = Instance.new("Part")
+        spawned.Name = "Admin_" .. blockType
+        spawned.Shape = shape
+        spawned.Size = Vector3.new(4, 4, 4)
+        spawned.Anchored = true
+        spawned.CanCollide = true
+        spawned.Material = Enum.Material.Neon
+        spawned.Color = Color3.fromRGB(255, 190, 45)
+        spawned.Position = plotData.center + Vector3.new(0, 5, 18)
+        spawned.Parent = spawnFolder
+    end
+end)
 
 local function rollProduct(plotData)
     -- Each unlocked machine adds an independent chance to produce its signature item.
@@ -397,6 +468,7 @@ for i = 1, PLOT_COUNT do
         productionLevel = 0,
         machineProductCount = 0,
         collection = {},
+        firstGlitchCubeRewardClaimed = false,
         productionButton = nil,
         buttons = {},
     }
@@ -450,6 +522,16 @@ local function deliverBox(plotData, player, version, lane)
     plotData.collection = plotData.collection or {}
     plotData.collection[product.name] = (plotData.collection[product.name] or 0) + 1
     collectionUpdated:FireClient(player, product.name, plotData.collection[product.name])
+    if product.name == "Glitch Cube" and not plotData.firstGlitchCubeRewardClaimed then
+        plotData.firstGlitchCubeRewardClaimed = true
+        local stats = player:FindFirstChild("leaderstats")
+        local cash = stats and stats:FindFirstChild("Factory Cash")
+        if cash then
+            cash.Value = math.clamp(cash.Value + FIRST_GLITCH_REWARD, 0, 2000000000)
+            rewardNotice:FireClient(player, FIRST_GLITCH_REWARD)
+            if ready[player] and saveProgress then task.spawn(saveProgress, player) end
+        end
+    end
     local box = part(product.name, Vector3.new(3, 3, 3),
         plotData.center + Vector3.new(-16, 4, zOffset),
         product.color, plotData.boxes)
@@ -698,7 +780,8 @@ local function loadProgress(player)
                 upgrades = type(result.upgrades) == "table" and result.upgrades or {},
                 productionLevel = math.clamp(math.floor(tonumber(result.productionLevel) or 0), 0, #PRODUCTION_LEVELS),
                 machineProductCount = math.clamp(math.floor(tonumber(result.machineProductCount) or 0), 0, 2000000000),
-                collection = {}
+                collection = {},
+                firstGlitchCubeRewardClaimed = result.firstGlitchCubeRewardClaimed == true
             }
             if type(result.collection) == "table" then
                 for name, count in pairs(result.collection) do
@@ -706,6 +789,9 @@ local function loadProgress(player)
                         progress.collection[name] = math.clamp(math.floor(tonumber(count) or 0), 0, 2000000000)
                     end
                 end
+            end
+            if progress.collection["Glitch Cube"] and progress.collection["Glitch Cube"] > 0 and result.firstGlitchCubeRewardClaimed == nil then
+                progress.firstGlitchCubeRewardClaimed = true
             end
             print(("[FactorySave] Loaded %s: cash=$%d, production=%d"):format(
                 player.Name, progress.cash, progress.productionLevel))
@@ -737,7 +823,8 @@ saveProgress = function(player)
         },
         productionLevel = plot.productionLevel or 0,
         machineProductCount = plot.machineProductCount or 0,
-        collection = table.clone(plot.collection or {})
+        collection = table.clone(plot.collection or {}),
+        firstGlitchCubeRewardClaimed = plot.firstGlitchCubeRewardClaimed == true
     }
     local success = false
     for attempt = 1, 3 do
@@ -785,6 +872,7 @@ local function assign(player, progress)
             plotData.productionLevel = progress.productionLevel or 0
             plotData.machineProductCount = progress.machineProductCount or 0
             plotData.collection = progress.collection or {}
+            plotData.firstGlitchCubeRewardClaimed = progress.firstGlitchCubeRewardClaimed == true
             player:SetAttribute("FactoryProductionLevel", plotData.productionLevel)
             for level = 1, plotData.productionLevel do
                 createProductionMachine(plotData, level)
@@ -814,6 +902,7 @@ local function release(player)
     plotData.productionLevel = 0
     plotData.machineProductCount = 0
     plotData.collection = {}
+    plotData.firstGlitchCubeRewardClaimed = false
     player:SetAttribute("FactoryProductionLevel", 0)
     local productionMachines = plotData.model:FindFirstChild("ProductionMachines")
     if productionMachines then productionMachines:Destroy() end
@@ -904,6 +993,7 @@ end
 local function onPlayerAdded(player)
     if player:FindFirstChild("leaderstats") then return end
     task.spawn(createFactoryHUD, player)
+    player:SetAttribute("IsFactoryAdmin", ADMIN_USER_ID ~= nil and player.UserId == ADMIN_USER_ID)
     local progress = loadProgress(player)
     if not progress then
         if game:GetService("RunService"):IsStudio() then
