@@ -31,6 +31,7 @@ local DAILY_QUESTS = {
 }
 local playerPlots = {}
 local plots = {}
+local productionPaused = false
 
 
 local UPGRADES = {
@@ -188,46 +189,113 @@ local function isFactoryAdmin(player)
     return ADMIN_USER_ID ~= nil and player.UserId == ADMIN_USER_ID
 end
 
-adminAction.OnServerEvent:Connect(function(player, action, value, blockType)
+local function saveAdminTarget(target)
+    if ready[target] and saveProgress then task.spawn(saveProgress, target) end
+end
+
+local function resetPlayerProgress(target)
+    local plotData = playerPlots[target]
+    local stats = target:FindFirstChild("leaderstats")
+    local cash = stats and stats:FindFirstChild("Factory Cash")
+    if not plotData or not cash then return false end
+    cash.Value = 0
+    plotData.version += 1
+    plotData.upgrades = { Machine = false, Speed = false, Income = false }
+    plotData.productionLevel = 0
+    plotData.machineProductCount = 0
+    plotData.collection = {}
+    plotData.firstGlitchCubeRewardClaimed = false
+    plotData.dailyQuests = freshDailyQuests()
+    plotData.boxes:ClearAllChildren()
+    for _, id in ipairs(ORDER) do
+        target:SetAttribute("FactoryUpgrade_" .. id, false)
+        updateButton(plotData, id)
+    end
+    local machines = plotData.model:FindFirstChild("ProductionMachines")
+    if machines then machines:Destroy() end
+    local extra = plotData.model:FindFirstChild("ExtraMachine")
+    if extra then extra:Destroy() end
+    target:SetAttribute("FactoryProductionLevel", 0)
+    updateProductionButton(plotData)
+    productionLoop(target, plotData)
+    sendDailyQuests(target)
+    saveAdminTarget(target)
+    return true
+end
+
+adminAction.OnServerEvent:Connect(function(player, action, value)
     if not isFactoryAdmin(player) then
         warn("[FactoryAdmin] Rejected unauthorized admin action from " .. player.Name)
         return
     end
-    if action == "GiveCash" then
+
+    local stats = player:FindFirstChild("leaderstats")
+    local cash = stats and stats:FindFirstChild("Factory Cash")
+    if action == "GiveCash" or action == "TakeCash" then
         local amount = tonumber(value)
-        if not amount or amount ~= amount then return end
-        amount = math.clamp(math.floor(amount), 1, 1000000000)
-        local stats = player:FindFirstChild("leaderstats")
-        local cash = stats and stats:FindFirstChild("Factory Cash")
-        if not cash then return end
-        cash.Value = math.clamp(cash.Value + amount, 0, 2000000000)
-        if ready[player] and saveProgress then task.spawn(saveProgress, player) end
-    elseif action == "SpawnBlock" then
+        if not cash or not amount or amount ~= amount then return end
+        amount = math.clamp(math.floor(math.abs(amount)), 0, 2000000000)
+        if action == "GiveCash" then
+            cash.Value = math.clamp(cash.Value + amount, 0, 2000000000)
+        else
+            cash.Value = math.max(0, cash.Value - amount)
+        end
+        saveAdminTarget(player)
+    elseif action == "SpawnProduct" then
+        local product
+        for _, candidate in ipairs(PRODUCTS) do
+            if candidate.name == value then product = candidate break end
+        end
+        if not product then
+            for _, level in ipairs(PRODUCTION_LEVELS) do
+                if level.product.name == value then
+                    product = {
+                        name = level.product.name, color = level.product.color,
+                        shape = level.product.shape, multiplier = level.product.multiplier,
+                        machineLevel = 3, rarity = level.rarity,
+                    }
+                    break
+                end
+            end
+        end
         local plotData = playerPlots[player]
-        if not plotData then return end
-        local allowedShapes = {
-            Block = Enum.PartType.Block,
-            Ball = Enum.PartType.Ball,
-            Cylinder = Enum.PartType.Cylinder,
-        }
-        local shape = allowedShapes[blockType]
-        if not shape then return end
-        local spawnFolder = plotData.model:FindFirstChild("AdminSpawned")
-        if not spawnFolder then
-            spawnFolder = Instance.new("Folder")
-            spawnFolder.Name = "AdminSpawned"
-            spawnFolder.Parent = plotData.model
+        if not product or not plotData then return end
+        local folder = plotData.model:FindFirstChild("AdminSpawned")
+        if not folder then
+            folder = Instance.new("Folder")
+            folder.Name = "AdminSpawned"
+            folder.Parent = plotData.model
         end
         local spawned = Instance.new("Part")
-        spawned.Name = "Admin_" .. blockType
-        spawned.Shape = shape
-        spawned.Size = Vector3.new(4, 4, 4)
+        spawned.Name = product.name
+        spawned.Size = Vector3.new(3, 3, 3)
+        spawned.Shape = product.shape
+        spawned.Color = product.color
+        spawned.Material = product.machineLevel and Enum.Material.Neon or Enum.Material.SmoothPlastic
         spawned.Anchored = true
-        spawned.CanCollide = true
-        spawned.Material = Enum.Material.Neon
-        spawned.Color = Color3.fromRGB(255, 190, 45)
-        spawned.Position = plotData.center + Vector3.new(0, 5, 18)
-        spawned.Parent = spawnFolder
+        spawned.CanCollide = false
+        spawned.Position = plotData.center + Vector3.new(-16, 4, 2)
+        spawned.Parent = folder
+        local targetPosition = plotData.center + Vector3.new(16, 4, 2)
+        local tween = TweenService:Create(spawned, TweenInfo.new(TRAVEL_TIME, Enum.EasingStyle.Linear), { Position = targetPosition })
+        tween:Play()
+        tween.Completed:Connect(function()
+            if spawned.Parent then spawned:Destroy() end
+        end)
+    elseif action == "ResetAccount" then
+        resetPlayerProgress(player)
+    elseif action == "StopAllProduction" then
+        productionPaused = value == true
+        for _, plotData in ipairs(plots) do
+            local owner = plotData.owner
+            if owner then
+                plotData.version += 1
+                if not productionPaused then
+                    productionLoop(owner, plotData)
+                end
+            end
+        end
+        print("[FactoryAdmin] Production " .. (productionPaused and "paused" or "resumed") .. " by " .. player.Name)
     end
 end)
 
@@ -847,7 +915,7 @@ end
 local function productionLoop(player, plotData)
     local version = plotData.version
     task.spawn(function()
-        while plotData.owner == player and plotData.version == version and player.Parent == Players do
+        while plotData.owner == player and plotData.version == version and player.Parent == Players and not productionPaused do
             task.spawn(deliverBox, plotData, player, version, 1)
             if plotData.upgrades.Machine then
                 task.spawn(deliverBox, plotData, player, version, 2)
