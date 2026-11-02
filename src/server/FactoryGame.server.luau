@@ -194,7 +194,7 @@ local function saveAdminTarget(target)
     if ready[target] and saveProgress then task.spawn(saveProgress, target) end
 end
 
-local function resetPlayerProgress(target)
+local function resetOnlinePlayerProgress(target)
     local plotData = playerPlots[target]
     local stats = target:FindFirstChild("leaderstats")
     local cash = stats and stats:FindFirstChild("Factory Cash")
@@ -218,10 +218,57 @@ local function resetPlayerProgress(target)
     if extra then extra:Destroy() end
     target:SetAttribute("FactoryProductionLevel", 0)
     updateProductionButton(plotData)
-    productionLoop(target, plotData)
+    if not productionPaused then productionLoop(target, plotData) end
     sendDailyQuests(target)
-    saveAdminTarget(target)
+    if ready[target] and saveProgress then
+        local saved = saveProgress(target)
+        if not saved then warn("[FactoryAdmin] Could not immediately save reset for " .. target.Name) end
+    end
     return true
+end
+
+local function resetAccountByUsername(username)
+    if type(username) ~= "string" then return false, "Enter a username." end
+    username = username:match("^%s*(.-)%s*$")
+    if username == "" or #username > 20 then return false, "Invalid username." end
+
+    local targetUserId
+    local ok, result = pcall(function()
+        return Players:GetUserIdFromNameAsync(username)
+    end)
+    if not ok then return false, "Roblox username was not found." end
+    targetUserId = result
+
+    local onlineTarget
+    for _, candidate in ipairs(Players:GetPlayers()) do
+        if candidate.UserId == targetUserId then onlineTarget = candidate break end
+    end
+    if onlineTarget then
+        if not resetOnlinePlayerProgress(onlineTarget) then
+            return false, "Player is online but their factory is not ready."
+        end
+        return true, "Reset " .. onlineTarget.Name .. "."
+    end
+
+    local defaultProgress = {
+        cash = 0,
+        upgrades = { Machine = false, Speed = false, Income = false },
+        productionLevel = 0,
+        machineProductCount = 0,
+        collection = {},
+        firstGlitchCubeRewardClaimed = false,
+        dailyQuests = freshDailyQuests(),
+    }
+    local saved, err = pcall(function()
+        getProgressStore():UpdateAsync("player_" .. targetUserId, function()
+            return defaultProgress
+        end)
+    end)
+    if not saved then
+        warn("[FactoryAdmin] Offline account reset failed: " .. tostring(err))
+        return false, "DataStore reset failed. Try again."
+    end
+    return true, "Offline account " .. username .. " reset."
 end
 
 adminAction.OnServerEvent:Connect(function(player, action, value)
@@ -288,7 +335,8 @@ adminAction.OnServerEvent:Connect(function(player, action, value)
             if spawned.Parent then spawned:Destroy() end
         end)
     elseif action == "ResetAccount" then
-        resetPlayerProgress(player)
+        local ok, message = resetAccountByUsername(value)
+        adminAction:FireClient(player, "Result", ok, message)
     elseif action == "StopAllProduction" then
         productionPaused = value == true
         for _, plotData in ipairs(plots) do
