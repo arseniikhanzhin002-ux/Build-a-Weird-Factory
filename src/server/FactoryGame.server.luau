@@ -216,9 +216,17 @@ local function resetOnlinePlayerProgress(target)
     if machines then machines:Destroy() end
     local extra = plotData.model:FindFirstChild("ExtraMachine")
     if extra then extra:Destroy() end
+    local adminSpawned = plotData.model:FindFirstChild("AdminSpawned")
+    if adminSpawned then adminSpawned:Destroy() end
     target:SetAttribute("FactoryProductionLevel", 0)
+    for _, id in ipairs(ORDER) do
+        target:SetAttribute("FactoryUpgrade_" .. id, false)
+    end
     updateProductionButton(plotData)
-    if not productionPaused then productionLoop(target, plotData) end
+    -- Invalidate every previous production worker, then start a fresh worker if global production is active.
+    if not productionPaused then
+        productionLoop(target, plotData)
+    end
     sendDailyQuests(target)
     if ready[target] and saveProgress then
         local saved = saveProgress(target)
@@ -338,17 +346,23 @@ adminAction.OnServerEvent:Connect(function(player, action, value)
         local ok, message = resetAccountByUsername(value)
         adminAction:FireClient(player, "Result", ok, message)
     elseif action == "StopAllProduction" then
-        productionPaused = value == true
+        productionPaused = true
+        for _, plotData in ipairs(plots) do
+            if plotData.owner then plotData.version += 1 end
+        end
+        print("[FactoryAdmin] Production paused by " .. player.Name)
+        adminAction:FireClient(player, "ProductionState", true)
+    elseif action == "ResumeAllProduction" then
+        productionPaused = false
         for _, plotData in ipairs(plots) do
             local owner = plotData.owner
             if owner then
                 plotData.version += 1
-                if not productionPaused then
-                    productionLoop(owner, plotData)
-                end
+                productionLoop(owner, plotData)
             end
         end
-        print("[FactoryAdmin] Production " .. (productionPaused and "paused" or "resumed") .. " by " .. player.Name)
+        print("[FactoryAdmin] Production resumed by " .. player.Name)
+        adminAction:FireClient(player, "ProductionState", false)
     end
 end)
 
