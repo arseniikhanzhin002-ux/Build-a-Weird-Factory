@@ -199,6 +199,12 @@ local function resetOnlinePlayerProgress(target)
     local stats = target:FindFirstChild("leaderstats")
     local cash = stats and stats:FindFirstChild("Factory Cash")
     if not plotData or not cash then return false end
+
+    -- Acquire the save lock BEFORE changing live data. This prevents an older autosave
+    -- snapshot from being written after the reset and restoring purchased upgrades.
+    while saving[target] do task.wait(0.1) end
+    saving[target] = true
+
     cash.Value = 0
     plotData.version += 1
     plotData.upgrades = { Machine = false, Speed = false, Income = false }
@@ -208,33 +214,49 @@ local function resetOnlinePlayerProgress(target)
     plotData.firstGlitchCubeRewardClaimed = false
     plotData.dailyQuests = freshDailyQuests()
     plotData.boxes:ClearAllChildren()
+
     for _, id in ipairs(ORDER) do
         target:SetAttribute("FactoryUpgrade_" .. id, false)
         updateButton(plotData, id)
     end
+
     local machines = plotData.model:FindFirstChild("ProductionMachines")
     if machines then machines:Destroy() end
     local extra = plotData.model:FindFirstChild("ExtraMachine")
     if extra then extra:Destroy() end
     local adminSpawned = plotData.model:FindFirstChild("AdminSpawned")
     if adminSpawned then adminSpawned:Destroy() end
+
     target:SetAttribute("FactoryProductionLevel", 0)
-    for _, id in ipairs(ORDER) do
-        target:SetAttribute("FactoryUpgrade_" .. id, false)
-    end
     updateProductionButton(plotData)
-    -- Invalidate every previous production worker, then start a fresh worker if global production is active.
+
+    -- Persist the reset while holding the save lock, so an autosave cannot restore old upgrades.
+    local resetSnapshot = {
+        cash = 0,
+        upgrades = { Machine = false, Speed = false, Income = false },
+        productionLevel = 0,
+        machineProductCount = 0,
+        collection = {},
+        firstGlitchCubeRewardClaimed = false,
+        dailyQuests = normalizeDailyQuests(plotData.dailyQuests),
+    }
+    local saved, saveError = pcall(function()
+        getProgressStore():UpdateAsync("player_" .. target.UserId, function()
+            return resetSnapshot
+        end)
+    end)
+    saving[target] = nil
+    if not saved then
+        warn("[FactoryAdmin] Could not persist reset for " .. target.Name .. ": " .. tostring(saveError))
+        return false
+    end
+
     if not productionPaused then
         productionLoop(target, plotData)
     end
     sendDailyQuests(target)
-    if ready[target] and saveProgress then
-        local saved = saveProgress(target)
-        if not saved then warn("[FactoryAdmin] Could not immediately save reset for " .. target.Name) end
-    end
     return true
 end
-
 local function resetAccountByUsername(username)
     if type(username) ~= "string" then return false, "Enter a username." end
     username = username:match("^%s*(.-)%s*$")
@@ -618,6 +640,32 @@ local function decorateFactory(model, center)
         antennaLight.Range = 8
         antennaLight.Parent = antennaTip
     end
+
+    -- High-visibility centerpiece: large, unmistakable Weird machinery on every plot.
+    local chaosTank = decorativePart("CentralChaosTank", Vector3.new(7, 9, 7),
+        CFrame.new(center + Vector3.new(0, 5.2, -29)),
+        Color3.fromRGB(65, 85, 75), Enum.Material.Glass, decoration, Enum.PartType.Ball)
+    chaosTank.Transparency = 0.18
+    local tankCore = decorativePart("CentralTankCore", Vector3.new(3.2, 5.5, 3.2),
+        CFrame.new(center + Vector3.new(0, 5.2, -29)),
+        toxicGreen, Enum.Material.Neon, decoration, Enum.PartType.Ball)
+    tankCore.Transparency = 0.12
+    local tankLight = Instance.new("PointLight")
+    tankLight.Color = toxicGreen
+    tankLight.Brightness = 2.5
+    tankLight.Range = 20
+    tankLight.Parent = tankCore
+
+    local spinnerBase = center + Vector3.new(0, 12, -29)
+    for index = 1, 4 do
+        local angle = math.rad((index - 1) * 90)
+        decorativePart("ChaosSpinnerArm", Vector3.new(0.55, 7, 0.55),
+            CFrame.new(spinnerBase) * CFrame.Angles(0, angle, math.rad(18)),
+            index % 2 == 0 and hotPink or weirdPurple, Enum.Material.Neon, decoration)
+    end
+    decorativePart("ChaosSpinnerHub", Vector3.new(2.2, 2.2, 2.2),
+        CFrame.new(spinnerBase), Color3.fromRGB(255, 205, 45),
+        Enum.Material.Neon, decoration, Enum.PartType.Ball)
 end
 
 local function createExtraMachine(plotData)
