@@ -43,7 +43,7 @@ local panel = Instance.new("Frame")
 panel.Name = "Panel"
 panel.AnchorPoint = Vector2.new(0, 0)
 panel.Position = UDim2.fromOffset(12, 76)
-panel.Size = UDim2.fromOffset(280, 218)
+panel.Size = UDim2.fromOffset(280, 244)
 local scale = Instance.new("UIScale")
 scale.Name = "ResponsiveScale"
 scale.Parent = panel
@@ -92,6 +92,8 @@ createLabel(panel, "UpgradeTitle", UDim2.fromOffset(15, 160), UDim2.fromOffset(2
     "UPGRADES", 12, muted, true)
 local upgradeText = createLabel(panel, "UpgradeStatus", UDim2.fromOffset(15, 181), UDim2.fromOffset(255, 22),
     "Machine: --   Speed: --   Income: --", 11, white, false)
+local productionLevelText = createLabel(panel, "ProductionLevel", UDim2.fromOffset(15, 204), UDim2.fromOffset(255, 22),
+    "Production Level: 0 / 3", 11, Color3.fromRGB(100, 220, 255), true)
 
 local function updateUpgrades()
     local parts = {}
@@ -101,7 +103,9 @@ local function updateUpgrades()
     end
     upgradeText.Text = table.concat(parts, "   ")
     plotText.Text = player:GetAttribute("FactoryPlot") or "Waiting for factory..."
+    productionLevelText.Text = "Production Level: " .. tostring(player:GetAttribute("FactoryProductionLevel") or 0) .. " / 3"
 end
+player:GetAttributeChangedSignal("FactoryProductionLevel"):Connect(updateUpgrades)
 player:GetAttributeChangedSignal("FactoryPlot"):Connect(updateUpgrades)
 for _, id in ipairs({"Machine", "Speed", "Income"}) do
     player:GetAttributeChangedSignal("FactoryUpgrade_" .. id):Connect(updateUpgrades)
