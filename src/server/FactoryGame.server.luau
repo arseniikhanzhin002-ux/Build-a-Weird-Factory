@@ -487,6 +487,85 @@ local function decorateFactory(model, center)
             CFrame.new(center + Vector3.new(x, 0.75, 0)),
             Color3.fromRGB(255, 200, 65), Enum.Material.Neon, decoration)
     end
+    -- Weird factory theme: mismatched pipes, goofy eyes, warning lights and bubbling tanks.
+    local weirdPurple = Color3.fromRGB(165, 75, 255)
+    local toxicGreen = Color3.fromRGB(130, 255, 65)
+    local hotPink = Color3.fromRGB(255, 75, 180)
+
+    for _, x in ipairs({-27, 27}) do
+        local pipe = decorativePart("CrookedPipe", Vector3.new(1.1, 13, 1.1),
+            CFrame.new(center + Vector3.new(x, 6.5, -24)) * CFrame.Angles(0, 0, math.rad(x > 0 and 12 or -12)),
+            weirdPurple, Enum.Material.Neon, decoration, Enum.PartType.Cylinder)
+        decorativePart("PipeElbow", Vector3.new(1.2, 1.2, 5),
+            CFrame.new(center + Vector3.new(x, 12.5, -21)), toxicGreen, Enum.Material.Metal, decoration)
+        local tank = decorativePart("BubbleTank", Vector3.new(5, 6, 5),
+            CFrame.new(center + Vector3.new(x, 3.5, -31)), Color3.fromRGB(55, 75, 65),
+            Enum.Material.Glass, decoration, Enum.PartType.Ball)
+        tank.Transparency = 0.25
+        local glow = Instance.new("PointLight")
+        glow.Color = toxicGreen
+        glow.Brightness = 1.2
+        glow.Range = 10
+        glow.Parent = tank
+        for n = 1, 3 do
+            decorativePart("TankBubble", Vector3.new(0.45, 0.45, 0.45),
+                CFrame.new(center + Vector3.new(x + (n - 2) * 1.1, 3.5 + n * 0.8, -31)),
+                toxicGreen, Enum.Material.Neon, decoration, Enum.PartType.Ball)
+        end
+    end
+
+    -- Oversized googly eyes make the main machines look deliberately silly.
+    for _, x in ipairs({-21, 21}) do
+        local eyeBase = center + Vector3.new(x, 8.2, 5.8)
+        for eye = 1, 2 do
+            local offset = (eye - 1.5) * 2.1
+            decorativePart("GooglyEyeWhite", Vector3.new(1.7, 1.7, 0.7),
+                CFrame.new(eyeBase + Vector3.new(offset, 0, 0)),
+                Color3.fromRGB(250, 250, 245), Enum.Material.SmoothPlastic, decoration, Enum.PartType.Ball)
+            decorativePart("GooglyEyePupil", Vector3.new(0.65, 0.65, 0.35),
+                CFrame.new(eyeBase + Vector3.new(offset + 0.12, -0.08, 0.42)),
+                Color3.fromRGB(20, 25, 35), Enum.Material.SmoothPlastic, decoration, Enum.PartType.Ball)
+        end
+        decorativePart("SillyMouth", Vector3.new(2.4, 0.35, 0.35),
+            CFrame.new(eyeBase + Vector3.new(0, -1.5, 0.45)),
+            hotPink, Enum.Material.Neon, decoration)
+    end
+
+    -- Giant warning beacon and rotating-looking gear silhouettes.
+    local beacon = decorativePart("ChaosBeacon", Vector3.new(2.2, 2.2, 2.2),
+        CFrame.new(center + Vector3.new(0, 11, -32)),
+        hotPink, Enum.Material.Neon, decoration, Enum.PartType.Ball)
+    local beaconLight = Instance.new("PointLight")
+    beaconLight.Color = hotPink
+    beaconLight.Brightness = 2
+    beaconLight.Range = 18
+    beaconLight.Parent = beacon
+
+    for _, x in ipairs({-11, 11}) do
+        local gear = decorativePart("GearWheel", Vector3.new(4.5, 4.5, 0.7),
+            CFrame.new(center + Vector3.new(x, 5, -35)) * CFrame.Angles(math.rad(90), 0, 0),
+            steel, Enum.Material.Metal, decoration, Enum.PartType.Cylinder)
+        local hub = decorativePart("GearHub", Vector3.new(1.2, 1.2, 0.9),
+            gear.CFrame, toxicGreen, Enum.Material.Neon, decoration, Enum.PartType.Cylinder)
+    end
+
+    -- Industrial floor markings and silly warning placards.
+    for _, x in ipairs({-30, 30}) do
+        local sign = decorativePart("WeirdWarningSign", Vector3.new(0.25, 3.2, 4.5),
+            CFrame.new(center + Vector3.new(x, 4, 18)),
+            Color3.fromRGB(255, 190, 35), Enum.Material.Neon, decoration)
+        local surface = Instance.new("SurfaceGui")
+        surface.Face = Enum.NormalId.Right
+        surface.Parent = sign
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.fromScale(1, 1)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = "DO NOT FEED THE MACHINES!"
+        textLabel.TextColor3 = Color3.fromRGB(35, 25, 15)
+        textLabel.TextScaled = true
+        textLabel.Font = Enum.Font.GothamBlack
+        textLabel.Parent = surface
+    end
 end
 
 local function createExtraMachine(plotData)
