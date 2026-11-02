@@ -1,12 +1,17 @@
--- Build a Weird Factory: stages 1, 2 and 3
+-- Build a Weird Factory: stages 1, 2, 3 and 4
 -- Server-authoritative plots, production, cash, and upgrades.
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local DataStoreService = game:GetService("DataStoreService")
 
 local PLOT_COUNT = 6
 local BOX_REWARD = 5
 local BOX_INTERVAL = 2
 local TRAVEL_TIME = 6
+local store = DataStoreService:GetDataStore("WeirdFactoryProgress_v1")
+local ready = {}
+local saving = {}
+
 
 local UPGRADES = {
     Machine = { price = 100, title = "Extra Machine", color = Color3.fromRGB(30, 210, 110), offset = Vector3.new(-23, 1.2, 14) },
@@ -228,6 +233,58 @@ local function productionLoop(player, plotData)
     end)
 end
 
+local function loadProgress(player)
+    for attempt = 1, 3 do
+        local ok, result = pcall(function()
+            return store:GetAsync("player_" .. player.UserId)
+        end)
+        if ok then
+            if type(result) ~= "table" then result = {} end
+            return {
+                cash = math.clamp(math.floor(tonumber(result.cash) or 0), 0, 2000000000),
+                upgrades = type(result.upgrades) == "table" and result.upgrades or {}
+            }
+        end
+        warn("Progress load failed: " .. tostring(result))
+        if attempt < 3 then task.wait(attempt * 2) end
+    end
+    return nil
+end
+
+local function saveProgress(player)
+    if not ready[player] then return true end
+    while saving[player] do task.wait(0.1) end
+    saving[player] = true
+    local plot = playerPlots[player]
+    local stats = player:FindFirstChild("leaderstats")
+    local cash = stats and stats:FindFirstChild("Factory Cash")
+    if not plot or not cash then
+        saving[player] = nil
+        return false
+    end
+    local snapshot = {
+        cash = cash.Value,
+        upgrades = {
+            Machine = plot.upgrades.Machine,
+            Speed = plot.upgrades.Speed,
+            Income = plot.upgrades.Income,
+        }
+    }
+    local success = false
+    for attempt = 1, 3 do
+        local ok, err = pcall(function()
+            store:UpdateAsync("player_" .. player.UserId, function()
+                return snapshot
+            end)
+        end)
+        if ok then success = true break end
+        warn("Progress save failed: " .. tostring(err))
+        if attempt < 3 then task.wait(attempt * 2) end
+    end
+    saving[player] = nil
+    return success
+end
+
 local function teleport(player, character)
     local plotData = playerPlots[player]
     if not plotData then return end
@@ -237,7 +294,7 @@ local function teleport(player, character)
     end
 end
 
-local function assign(player)
+local function assign(player, progress)
     if playerPlots[player] then return end
     for _, plotData in ipairs(plots) do
         if not plotData.owner then
@@ -245,6 +302,11 @@ local function assign(player)
             plotData.version += 1
             playerPlots[player] = plotData
             plotData.sign.Text = player.DisplayName .. "'s Factory"
+            for _, id in ipairs(ORDER) do
+                plotData.upgrades[id] = progress.upgrades[id] == true
+                updateButton(plotData, id)
+            end
+            if plotData.upgrades.Machine then createExtraMachine(plotData) end
             productionLoop(player, plotData)
             if player.Character then
                 task.spawn(teleport, player, player.Character)
@@ -273,22 +335,57 @@ end
 
 local function onPlayerAdded(player)
     if player:FindFirstChild("leaderstats") then return end
+    local progress = loadProgress(player)
+    if not progress then
+        player:Kick("Factory save data unavailable. Rejoin to protect your progress.")
+        return
+    end
+    if player.Parent ~= Players then return end
     local stats = Instance.new("Folder")
     stats.Name = "leaderstats"
     stats.Parent = player
     local cash = Instance.new("IntValue")
     cash.Name = "Factory Cash"
-    cash.Value = 0
+    cash.Value = progress.cash
     cash.Parent = stats
-    assign(player)
+    assign(player, progress)
+    if playerPlots[player] then ready[player] = true end
     player.CharacterAdded:Connect(function(character)
         teleport(player, character)
     end)
 end
 
 Players.PlayerAdded:Connect(onPlayerAdded)
-Players.PlayerRemoving:Connect(release)
+Players.PlayerRemoving:Connect(function(player)
+    if not saveProgress(player) then
+        warn("Could not save progress for " .. player.Name)
+    end
+    ready[player] = nil
+    release(player)
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(60)
+        for player in pairs(ready) do
+            task.spawn(saveProgress, player)
+        end
+    end
+end)
+
+game:BindToClose(function()
+    local pending = 0
+    for player in pairs(ready) do
+        pending += 1
+        task.spawn(function()
+            saveProgress(player)
+            pending -= 1
+        end)
+    end
+    local deadline = os.clock() + 25
+    while pending > 0 and os.clock() < deadline do task.wait(0.1) end
+end)
 for _, player in ipairs(Players:GetPlayers()) do
     task.spawn(onPlayerAdded, player)
 end
-print("Build a Weird Factory: stages 1-3 ready")
+print("Build a Weird Factory: stages 1-4 ready")
