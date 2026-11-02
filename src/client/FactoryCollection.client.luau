@@ -13,9 +13,9 @@ local PRODUCTS = {
     { name = "Living Fridge", rarity = "UNCOMMON", color = Color3.fromRGB(100, 230, 145) },
     { name = "Flying Sofa", rarity = "RARE", color = Color3.fromRGB(75, 175, 255) },
     { name = "Alien Orb", rarity = "LEGENDARY", color = Color3.fromRGB(255, 185, 55) },
-    { name = "Clockwork Duck", rarity = "RARE", color = Color3.fromRGB(75, 175, 255) },
-    { name = "Plasma Donut", rarity = "EPIC", color = Color3.fromRGB(195, 105, 255) },
-    { name = "Glitch Cube", rarity = "LEGENDARY", color = Color3.fromRGB(255, 185, 55) },
+    { name = "Clockwork Duck", rarity = "RARE", color = Color3.fromRGB(75, 175, 255), dropChance = 4, requiredLevel = 1 },
+    { name = "Plasma Donut", rarity = "EPIC", color = Color3.fromRGB(195, 105, 255), dropChance = 2.5, requiredLevel = 2 },
+    { name = "Glitch Cube", rarity = "LEGENDARY", color = Color3.fromRGB(255, 185, 55), dropChance = 1, requiredLevel = 3 },
 }
 
 local counts = {}
@@ -171,7 +171,16 @@ local function render()
         if count > 0 then
             discovered += 1
             row.name.Text = product.name
-            row.rarity.Text = product.rarity
+            if product.dropChance then
+                local currentLevel = player:GetAttribute("FactoryProductionLevel") or 0
+                if currentLevel >= product.requiredLevel then
+                    row.rarity.Text = string.format("%s  •  %.1f%% CHANCE", product.rarity, product.dropChance)
+                else
+                    row.rarity.Text = product.rarity .. "  •  UNLOCK LEVEL " .. product.requiredLevel
+                end
+            else
+                row.rarity.Text = product.rarity
+            end
             row.rarity.TextColor3 = product.color
         else
             row.name.Text = "???"
@@ -212,4 +221,5 @@ close.Activated:Connect(function()
 end)
 
 render()
+player:GetAttributeChangedSignal("FactoryProductionLevel"):Connect(render)
 task.defer(refresh)
