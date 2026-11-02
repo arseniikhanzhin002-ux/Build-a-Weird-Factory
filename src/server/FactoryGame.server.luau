@@ -24,6 +24,7 @@ local saveProgress
 local ADMIN_USERNAME = "pozziBros_Az"
 local ADMIN_USER_ID
 local FIRST_GLITCH_REWARD = 2500
+local playerPlots = {}
 
 
 local UPGRADES = {
@@ -181,7 +182,6 @@ folder.Name = "FactoryPlots"
 folder.Parent = workspace
 
 local plots = {}
-local playerPlots = {}
 
 local function part(name, size, position, color, parent)
     local p = Instance.new("Part")
