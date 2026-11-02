@@ -184,6 +184,44 @@ for i = 1, PLOT_COUNT do
     buildShop(plotData)
 end
 
+-- Show short visual feedback at the collector after a successful sale.
+local function showSalePopup(plotData, amount)
+    local collector = plotData.model:FindFirstChild("Collector")
+    if not collector then return end
+
+    local gui = Instance.new("BillboardGui")
+    gui.Name = "SalePopup"
+    gui.Size = UDim2.fromOffset(140, 45)
+    gui.StudsOffsetWorldSpace = Vector3.new(math.random(-2, 2), 5, 0)
+    gui.AlwaysOnTop = true
+    gui.MaxDistance = 100
+    gui.Parent = collector
+
+    local label = Instance.new("TextLabel")
+    label.Name = "Amount"
+    label.Size = UDim2.fromScale(1, 1)
+    label.BackgroundTransparency = 1
+    label.Text = "+$" .. tostring(amount)
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.TextColor3 = Color3.fromRGB(85, 255, 130)
+    label.TextStrokeTransparency = 0.35
+    label.Parent = gui
+
+    local movement = TweenService:Create(gui,
+        TweenInfo.new(0.85, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        { StudsOffsetWorldSpace = gui.StudsOffsetWorldSpace + Vector3.new(0, 3, 0) })
+    local fade = TweenService:Create(label, TweenInfo.new(0.85), {
+        TextTransparency = 1,
+        TextStrokeTransparency = 1
+    })
+    movement:Play()
+    fade:Play()
+    task.delay(1, function()
+        if gui.Parent then gui:Destroy() end
+    end)
+end
+
 local function deliverBox(plotData, player, version, lane)
     if plotData.owner ~= player or plotData.version ~= version then return end
     local zOffset = lane == 2 and -2 or 2
@@ -222,7 +260,9 @@ local function deliverBox(plotData, player, version, lane)
         local stats = player:FindFirstChild("leaderstats")
         local cash = stats and stats:FindFirstChild("Factory Cash")
         if cash then
-            cash.Value += (plotData.upgrades.Income and 10 or BOX_REWARD) * product.multiplier
+            local earned = (plotData.upgrades.Income and 10 or BOX_REWARD) * product.multiplier
+            cash.Value += earned
+            showSalePopup(plotData, earned)
         end
     end
     box:Destroy()
